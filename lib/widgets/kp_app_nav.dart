@@ -18,12 +18,12 @@ enum KpTab {
   profile;
 
   Widget get screen => switch (this) {
-    KpTab.home => const HomeScreen(),
-    KpTab.wallet => const WalletScreen(),
-    KpTab.send => const TransferScreen(),
-    KpTab.pay => const BillsScreen(),
-    KpTab.profile => const ProfileScreen(),
-  };
+        KpTab.home => const HomeScreen(),
+        KpTab.wallet => const WalletScreen(),
+        KpTab.send => const TransferScreen(),
+        KpTab.pay => const BillsScreen(),
+        KpTab.profile => const ProfileScreen(),
+      };
 }
 
 /// The bottom navigation shown on every signed-in screen.
@@ -44,7 +44,12 @@ KpBottomNav kpAppNav(BuildContext context, {required KpTab active}) {
 
   void go(KpTab tab) {
     if (tab == active) return;
-    Navigator.of(context).pushAndRemoveUntil(
+    final navigator = Navigator.of(context);
+    if (tab == KpTab.home) {
+      navigator.popUntil((route) => route.isFirst);
+      return;
+    }
+    navigator.pushAndRemoveUntil(
       MaterialPageRoute<void>(builder: (_) => tab.screen),
       (route) => route.isFirst,
     );

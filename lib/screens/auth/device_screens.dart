@@ -5,7 +5,6 @@ import '../../theme/kp_theme.dart';
 import '../../widgets/kp_controls.dart';
 import '../../widgets/kp_shell.dart';
 import '../../widgets/kp_visuals.dart';
-import '../home/home_screen.dart';
 import 'account_entry_screen.dart';
 import 'help_screens.dart';
 import 'secure_account_screen.dart';
@@ -234,22 +233,12 @@ class DeviceSuccessScreen extends StatelessWidget {
                         KpButton(
                           label: 'Go to home',
                           style: KpButtonStyle.success,
-                          onTap: () => kpOpen(
-                            context,
-                            const HomeScreen(),
-                            title: 'Home dashboard',
-                            step: 23,
-                          ),
+                          onTap: () => kpBackToStart(context),
                         ),
                         KpTextLink(
                           'Back to home',
                           color: KpColors.muted,
-                          onTap: () => kpOpen(
-                            context,
-                            const HomeScreen(),
-                            title: 'Home dashboard',
-                            step: 23,
-                          ),
+                          onTap: () => kpBackToStart(context),
                         ),
                         const SizedBox(height: 6),
                       ],

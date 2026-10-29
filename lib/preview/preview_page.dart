@@ -28,10 +28,13 @@ class KpPreviewPage extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 10, 18, 10),
               child: Row(
                 children: [
-                  KpIconButton(
-                    icon: Icons.arrow_back_rounded,
-                    onTap: () => Navigator.of(context).maybePop(),
-                  ),
+                  if (Navigator.canPop(context))
+                    KpIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      onTap: () => kpBack(context),
+                    )
+                  else
+                    const SizedBox(width: 42, height: 42),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

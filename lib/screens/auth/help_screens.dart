@@ -9,7 +9,6 @@ import '../../theme/kp_theme.dart';
 import '../../widgets/kp_controls.dart';
 import '../../widgets/kp_shell.dart';
 import '../../widgets/kp_visuals.dart';
-import 'account_entry_screen.dart';
 import 'state_screens.dart';
 
 /// 14 — Help / contact support.
@@ -38,7 +37,8 @@ class HelpScreen extends StatelessWidget {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => SupportPage(
-                    repository: SupportRepository(baseUrl: kApiBase, token: token),
+                    repository:
+                        SupportRepository(baseUrl: kApiBase, token: token),
                   ),
                 ),
               );
@@ -89,12 +89,7 @@ class HelpScreen extends StatelessWidget {
         KpTextLink(
           'Back to login',
           color: KpColors.muted,
-          onTap: () => kpOpen(
-            context,
-            const AccountEntryScreen(),
-            title: 'Login',
-            step: 1,
-          ),
+          onTap: () => kpBackToStart(context),
         ),
       ],
     );

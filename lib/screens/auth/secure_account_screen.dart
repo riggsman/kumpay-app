@@ -4,7 +4,6 @@ import '../../preview/preview_page.dart';
 import '../../theme/kp_theme.dart';
 import '../../widgets/kp_controls.dart';
 import '../../widgets/kp_shell.dart';
-import 'account_entry_screen.dart';
 import 'help_screens.dart';
 
 /// 20 — Secure your account after an unrecognised device change.
@@ -138,15 +137,7 @@ class SecureAccountScreen extends StatelessWidget {
               KpButton(
                 label: 'Back to login',
                 style: KpButtonStyle.success,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  kpOpen(
-                    context,
-                    const AccountEntryScreen(),
-                    title: 'Login',
-                    step: 1,
-                  );
-                },
+                onTap: () => kpBackToStart(context),
               ),
             ],
           ),

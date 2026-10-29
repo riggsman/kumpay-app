@@ -14,7 +14,6 @@ import '../../widgets/kp_finance.dart';
 import '../../widgets/kp_app_nav.dart';
 import '../../widgets/kp_shell.dart';
 import '../../widgets/kp_visuals.dart';
-import '../home/home_screen.dart';
 
 /// 25 — Send money.
 class TransferScreen extends StatefulWidget {
@@ -169,10 +168,10 @@ class _TransferScreenState extends State<TransferScreen> {
         Text(
           'Recent',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: KpColors.muted,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w800,
-          ),
+                color: KpColors.muted,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+              ),
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -211,10 +210,10 @@ class _TransferScreenState extends State<TransferScreen> {
         Text(
           'Amount',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: KpColors.muted,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w800,
-          ),
+                color: KpColors.muted,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+              ),
         ),
         const SizedBox(height: 8),
         Container(
@@ -231,7 +230,9 @@ class _TransferScreenState extends State<TransferScreen> {
                   controller: _amount,
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setState(() {}),
-                  style: Theme.of(context).textTheme.headlineSmall
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
                       ?.copyWith(fontSize: 25, fontWeight: FontWeight.w800),
                   decoration: const InputDecoration(
                     filled: false,
@@ -265,7 +266,9 @@ class _TransferScreenState extends State<TransferScreen> {
             const SizedBox(width: 4),
             Text(
               'Balance: 248 500 FCFA',
-              style: Theme.of(context).textTheme.labelSmall
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
                   ?.copyWith(color: KpColors.muted, fontSize: 9),
             ),
             const Spacer(),
@@ -370,12 +373,7 @@ class TransferSuccessScreen extends StatelessWidget {
                         KpButton(
                           label: 'Back to home',
                           style: KpButtonStyle.success,
-                          onTap: () => kpOpen(
-                            context,
-                            const HomeScreen(),
-                            title: 'Home dashboard',
-                            step: 23,
-                          ),
+                          onTap: () => kpBackToStart(context),
                         ),
                         KpTextLink(
                           'Send another',
@@ -440,7 +438,9 @@ class _RecentRecipient extends StatelessWidget {
             name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelSmall
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
                 ?.copyWith(color: KpColors.ink2, fontSize: 8.5),
           ),
         ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/kp_theme.dart';
 import 'kp_controls.dart';
+import 'kp_shell.dart';
 
 class KpDeviceIllustration extends StatelessWidget {
   const KpDeviceIllustration({super.key, this.size = 140});
@@ -173,13 +174,13 @@ class KpSuccessHero extends StatelessWidget {
           ),
           Column(
             children: [
-              if (onBack != null)
+              if (Navigator.canPop(context))
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Row(
                     children: [
                       IconButton(
-                        onPressed: onBack,
+                        onPressed: onBack ?? () => kpBack(context),
                         style: IconButton.styleFrom(
                           backgroundColor: Colors.white.withValues(alpha: 0.1),
                         ),

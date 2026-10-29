@@ -21,7 +21,6 @@ import '../../widgets/kp_finance.dart';
 import '../../widgets/kp_app_nav.dart';
 import '../../widgets/kp_shell.dart';
 import '../../widgets/kp_visuals.dart';
-import '../home/home_screen.dart';
 import '../profile/autopay_page.dart';
 
 /// 27 — Bills hub.
@@ -541,12 +540,7 @@ class BillSuccessScreen extends StatelessWidget {
                         KpButton(
                           label: 'Back to home',
                           style: KpButtonStyle.success,
-                          onTap: () => kpOpen(
-                            context,
-                            const HomeScreen(),
-                            title: 'Home dashboard',
-                            step: 23,
-                          ),
+                          onTap: () => kpBackToStart(context),
                         ),
                         KpTextLink(
                           'Pay another bill',
