@@ -25,6 +25,7 @@ import '../cards/card_screen.dart';
 import '../kyc/kyc_screens.dart';
 import '../profile/profile_screen.dart';
 import '../wallet/activity_screen.dart';
+import '../wallet/top_up_screen.dart';
 import '../wallet/transfer_screen.dart';
 import '../wallet/wallet_screen.dart';
 
@@ -46,6 +47,11 @@ class HomeScreen extends StatelessWidget {
         ? (snapshot?.services ?? const <PlatformService>[])
         : const <PlatformService>[];
     final alert = snapshot?.alert;
+    void openDeposit() => kpOpen(
+          context,
+          const TopUpScreen(),
+          title: 'Add money',
+        );
     return KpPage(
       padding: const EdgeInsets.fromLTRB(22, 6, 22, 14),
       header: Row(
@@ -101,14 +107,7 @@ class HomeScreen extends StatelessWidget {
             amount: amount,
             showPrimary: deposit,
             showSecondary: send,
-            onPrimary: deposit
-                ? () => kpOpen(
-                      context,
-                      const WalletScreen(),
-                      title: 'Add money',
-                      step: 24,
-                    )
-                : null,
+            onPrimary: deposit ? openDeposit : null,
             onSecondary: send
                 ? () => kpOpen(
                       context,
@@ -162,12 +161,7 @@ class HomeScreen extends StatelessWidget {
                 child: KpServiceTile(
                   label: 'Add money',
                   icon: Icons.add_rounded,
-                  onTap: () => kpOpen(
-                    context,
-                    const WalletScreen(),
-                    title: 'Add money',
-                    step: 24,
-                  ),
+                  onTap: openDeposit,
                 ),
               ),
             if (send)

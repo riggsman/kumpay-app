@@ -5,6 +5,7 @@ import 'package:kumpay_uiux/features/feature_flags/feature_flags_repository.dart
 import 'package:kumpay_uiux/features/feature_flags/feature_flags_snapshot.dart';
 import 'package:kumpay_uiux/screens/bills/bills_screen.dart';
 import 'package:kumpay_uiux/screens/home/home_screen.dart';
+import 'package:kumpay_uiux/screens/wallet/top_up_screen.dart';
 import 'package:kumpay_uiux/state/feature_flags_controller.dart';
 import 'package:kumpay_uiux/state/feature_flags_scope.dart';
 import 'package:kumpay_uiux/theme/kp_theme.dart';
@@ -227,6 +228,28 @@ void main() {
 
     expect(find.text('Market day'), findsNothing);
     expect(find.text('Zero fees on ENEO this week'), findsNothing);
+  });
+
+  testWidgets('add money opens the deposit screen', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KpTheme.light(),
+        builder: (context, child) => Material(child: child),
+        home: const HomeScreen(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Add money').first);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TopUpScreen), findsOneWidget);
+    expect(find.text('How much do you want to add?'), findsOneWidget);
+    expect(find.text('Linked accounts'), findsNothing);
   });
 }
 
