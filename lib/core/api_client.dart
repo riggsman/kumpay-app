@@ -7,7 +7,7 @@ import 'api_exception.dart';
 /// JSON client for the KumPay API error envelope.
 class ApiClient {
   ApiClient({required this.baseUrl, http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   final String baseUrl;
   final http.Client _client;
@@ -25,7 +25,28 @@ class ApiClient {
     return _send(
       () => _client.post(
         _uri(path),
-        headers: {..._headers(token, json: body != null), ...?headers},
+        headers: {
+          ..._headers(token, json: body != null),
+          ...?headers,
+        },
+        body: body == null ? null : jsonEncode(body),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> put(
+    String path, {
+    String? token,
+    Object? body,
+    Map<String, String>? headers,
+  }) {
+    return _send(
+      () => _client.put(
+        _uri(path),
+        headers: {
+          ..._headers(token, json: body != null),
+          ...?headers,
+        },
         body: body == null ? null : jsonEncode(body),
       ),
     );
@@ -40,7 +61,9 @@ class ApiClient {
   }) {
     final request = http.MultipartRequest('POST', _uri(path));
     request.headers.addAll(_headers(token));
-    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+    );
     return _send(() async {
       final streamed = await _client.send(request);
       return http.Response.fromStream(streamed);
@@ -52,11 +75,15 @@ class ApiClient {
   }
 
   Uri _uri(String path) {
-    final root = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final root = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     return Uri.parse('$root$path');
   }
 
-  Future<Map<String, dynamic>> _send(Future<http.Response> Function() call) async {
+  Future<Map<String, dynamic>> _send(
+    Future<http.Response> Function() call,
+  ) async {
     final http.Response response;
     try {
       response = await call().timeout(const Duration(seconds: 20));
@@ -95,11 +122,13 @@ class ApiClient {
         code: error['code']?.toString() ?? AuthErrorCodes.validation,
         message: error['message']?.toString() ?? 'Request failed.',
         details: details,
+        status: status,
       );
     }
     return ApiException(
       code: AuthErrorCodes.validation,
       message: 'Request failed ($status).',
+      status: status,
     );
   }
 

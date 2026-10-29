@@ -7,11 +7,15 @@ class ApiException implements Exception {
     required this.code,
     required this.message,
     this.details = const {},
+    this.status,
   });
 
   final String code;
   final String message;
   final Map<String, Object?> details;
+
+  /// HTTP status, when the failure came from a response.
+  final int? status;
 
   /// Remaining verification attempts, when the server reports them.
   int? get remainingAttempts => details['remainingAttempts'] as int?;

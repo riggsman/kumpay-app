@@ -2,25 +2,29 @@ import 'package:flutter/material.dart';
 
 import '../theme/kp_theme.dart';
 
+class KpNavItem {
+  const KpNavItem({
+    required this.icon,
+    required this.label,
+    this.center = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool center;
+}
+
 class KpBottomNav extends StatelessWidget {
   const KpBottomNav({
     super.key,
+    required this.items,
     this.index = 0,
     this.onTap,
-    this.onSend,
   });
 
+  final List<KpNavItem> items;
   final int index;
   final ValueChanged<int>? onTap;
-  final VoidCallback? onSend;
-
-  static const _items = <(IconData, String)>[
-    (Icons.home_rounded, 'Home'),
-    (Icons.account_balance_wallet_outlined, 'Wallet'),
-    (Icons.send_rounded, 'Send'),
-    (Icons.receipt_long_outlined, 'Pay'),
-    (Icons.person_outline_rounded, 'Profile'),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -39,20 +43,14 @@ class KpBottomNav extends StatelessWidget {
       ),
       child: Row(
         children: [
-          for (var i = 0; i < _items.length; i++)
+          for (var i = 0; i < items.length; i++)
             Expanded(
               child: _NavItem(
-                icon: _items[i].$1,
-                label: _items[i].$2,
+                icon: items[i].icon,
+                label: items[i].label,
                 active: index == i,
-                center: i == 2,
-                onTap: () {
-                  if (i == 2) {
-                    onSend?.call();
-                  } else {
-                    onTap?.call(i);
-                  }
-                },
+                center: items[i].center,
+                onTap: () => onTap?.call(i),
               ),
             ),
         ],
@@ -102,11 +100,7 @@ class _NavItem extends StatelessWidget {
                   ],
                   border: Border.all(color: KpColors.surface, width: 3),
                 ),
-                child: const Icon(
-                  Icons.send_rounded,
-                  size: 19,
-                  color: KpColors.primaryDark,
-                ),
+                child: Icon(icon, size: 19, color: KpColors.primaryDark),
               ),
             ),
             Transform.translate(
@@ -114,10 +108,10 @@ class _NavItem extends StatelessWidget {
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: KpColors.primary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 8.5,
-                    ),
+                  color: KpColors.primary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 8.5,
+                ),
               ),
             ),
           ],
@@ -143,10 +137,10 @@ class _NavItem extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                  fontSize: 8.5,
-                ),
+              color: color,
+              fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+              fontSize: 8.5,
+            ),
           ),
           Container(
             width: 4,

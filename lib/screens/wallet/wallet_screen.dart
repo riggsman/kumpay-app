@@ -4,8 +4,10 @@ import '../../core/app_config.dart';
 import '../../data/cards/cards_repository.dart';
 import '../../data/demo.dart';
 import '../../features/cards/cards_page.dart';
+import '../../features/feature_flags/app_feature.dart';
 import '../../features/money/live_money.dart';
 import '../../state/auth_scope.dart';
+import '../../state/feature_flags_scope.dart';
 import '../../preview/preview_page.dart';
 import '../../theme/kp_theme.dart';
 import '../../widgets/kp_app_nav.dart';
@@ -32,6 +34,12 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     final xaf = _tab == 0;
+    final deposit = FeatureFlagsScope.enabled(context, AppFeature.deposit);
+    final send = FeatureFlagsScope.enabled(context, AppFeature.send);
+    final withdrawal = FeatureFlagsScope.enabled(
+      context,
+      AppFeature.withdrawal,
+    );
 
     return KpPage(
       padding: const EdgeInsets.fromLTRB(22, 6, 22, 14),
@@ -63,33 +71,40 @@ class _WalletScreenState extends State<WalletScreen> {
             wallet: xaf ? 'KumPay Wallet' : 'Card funding account',
             primaryAction: 'Add money',
             secondaryAction: 'Send',
-            onPrimary: () => kpOpen(
-              context,
-              TopUpScreen(usd: !xaf),
-              title: 'Add money',
-              step: 0,
-            ),
-            onSecondary: () => kpOpen(
-              context,
-              const TransferScreen(),
-              title: 'Send money',
-              step: 25,
-            ),
+            showPrimary: deposit,
+            showSecondary: send,
+            onPrimary: deposit
+                ? () => kpOpen(
+                    context,
+                    TopUpScreen(usd: !xaf),
+                    title: 'Add money',
+                    step: 0,
+                  )
+                : null,
+            onSecondary: send
+                ? () => kpOpen(
+                    context,
+                    const TransferScreen(),
+                    title: 'Send money',
+                    step: 25,
+                  )
+                : null,
           ),
         ),
         const SizedBox(height: 12),
         KpActionRow(
           children: [
-            KpButton(
-              label: 'Withdraw',
-              style: KpButtonStyle.outline,
-              onTap: () => kpOpen(
-                context,
-                TopUpScreen(usd: !xaf, withdraw: true),
-                title: 'Withdraw',
-                note: 'Payout to Mobile Money or bank',
+            if (withdrawal)
+              KpButton(
+                label: 'Withdraw',
+                style: KpButtonStyle.outline,
+                onTap: () => kpOpen(
+                  context,
+                  TopUpScreen(usd: !xaf, withdraw: true),
+                  title: 'Withdraw',
+                  note: 'Payout to Mobile Money or bank',
+                ),
               ),
-            ),
             KpButton(
               label: 'To card',
               style: KpButtonStyle.soft,
@@ -100,13 +115,21 @@ class _WalletScreenState extends State<WalletScreen> {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => CardsPage(
-                        repository: CardsRepository(baseUrl: kApiBase, token: token),
+                        repository: CardsRepository(
+                          baseUrl: kApiBase,
+                          token: token,
+                        ),
                       ),
                     ),
                   );
                   return;
                 }
-                kpOpen(context, const CardScreen(), title: 'Virtual card', step: 30);
+                kpOpen(
+                  context,
+                  const CardScreen(),
+                  title: 'Virtual card',
+                  step: 30,
+                );
               },
             ),
           ],
@@ -161,9 +184,8 @@ class _WalletScreenState extends State<WalletScreen> {
             children: [
               Text(
                 'Wallet settings',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
               KpSettingsTile(

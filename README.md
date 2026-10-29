@@ -84,6 +84,22 @@ Keep every rule server-side: OTP delivery order, 6-month phone cooldown, KYC
 decisions, card limits, refund four-eyes and role permissions must never be
 decided in this client.
 
+## Platform feature flags
+
+Send, top up, withdrawal, billers (school fees, ENEO, CAMWATER, Canal+, DStv
+and the rest), biometrics and the extra sign-in check are hidden the moment
+the platform turns them off, and shown again when it turns them on. Every
+money movement is also checked for verification, permission, and the monthly,
+quarterly, and annual limits before it is submitted.
+
+A service the platform creates later is shown from the same snapshot: its name,
+its logo, and up to three inputs (`amount`, `receiver`, `type`). Paying it
+debits the KumPay balance. The provider is contacted only when that balance
+does not cover the amount, and that decision stays on the server.
+
+The methods the backend has to expose are written in [FEATURE_FLAGS.md](FEATURE_FLAGS.md)
+and [PLATFORM_SERVICES.md](PLATFORM_SERVICES.md).
+
 ## Notes
 
 - `google_fonts` fetches Manrope/Bricolage at runtime. For offline builds, add
