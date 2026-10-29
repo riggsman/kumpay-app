@@ -1100,6 +1100,7 @@ class KpSettingsTile extends StatelessWidget {
     this.trailingText,
     this.onTap,
     this.danger = false,
+    this.locked = false,
   });
 
   final String title;
@@ -1107,6 +1108,9 @@ class KpSettingsTile extends StatelessWidget {
   final String? trailingText;
   final VoidCallback? onTap;
   final bool danger;
+
+  /// Hides the chevron. Used for values the platform sets, such as currency.
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -1150,7 +1154,13 @@ class KpSettingsTile extends StatelessWidget {
               ),
               const SizedBox(width: 4),
             ],
-            if (!danger)
+            if (locked)
+              const Icon(
+                Icons.lock_outline_rounded,
+                size: 16,
+                color: KpColors.muted,
+              )
+            else if (!danger)
               const Icon(
                 Icons.chevron_right_rounded,
                 size: 18,

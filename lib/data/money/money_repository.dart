@@ -5,6 +5,7 @@ import '../../core/api_exception.dart';
 import '../../features/services/platform_service.dart';
 import '../../features/transactions/account_limits.dart';
 import '../../features/transactions/transaction_authorizer.dart';
+import '../../features/wallet/wallet_settings.dart';
 import '../demo.dart';
 
 class MoneyAmount {
@@ -193,22 +194,34 @@ class FeeOption {
 
 class AccountDevice {
   const AccountDevice({
+    required this.id,
     required this.model,
     required this.platform,
     required this.lastSeenAt,
+    this.label = '',
+    this.current = false,
   });
 
+  final String id;
+  final String label;
   final String model;
   final String platform;
+  final bool current;
   final String? lastSeenAt;
+
+  /// Name the person gave this device, or the model when they have not.
+  String get displayName => label.trim().isEmpty ? model : label.trim();
 
   factory AccountDevice.fromJson(Map<String, dynamic> json) {
     final model = json['model']?.toString();
     return AccountDevice(
+      id: json['id']?.toString() ?? '',
+      label: json['label']?.toString() ?? '',
       model: model == null || model.isEmpty || model == 'null'
           ? (json['platform']?.toString() ?? 'Device')
           : model,
       platform: json['platform']?.toString() ?? '',
+      current: json['current'] == true,
       lastSeenAt: json['lastSeenAt']?.toString(),
     );
   }
@@ -220,12 +233,15 @@ class MoneyRepository {
     required this.token,
     ApiClient? api,
     TransactionAuthorizer? authorizer,
+    WalletSettingsCache? settingsCache,
   })  : _api = api ?? ApiClient(baseUrl: baseUrl),
-        _authorizer = authorizer ?? TransactionAuthorizer(baseUrl: baseUrl);
+        _authorizer = authorizer ?? TransactionAuthorizer(baseUrl: baseUrl),
+        _settingsCache = settingsCache ?? SecureWalletSettingsCache();
 
   final String token;
   final ApiClient _api;
   final TransactionAuthorizer _authorizer;
+  final WalletSettingsCache _settingsCache;
 
   /// Confirms the platform still allows this movement, then lets the caller post it.
   Future<void> _guard({
@@ -499,6 +515,95 @@ class MoneyRepository {
     );
   }
 
+  /// Last settings saved on this device, before the network answers.
+  Future<WalletSettings?> cachedSettings() => _settingsCache.read();
+
+  /// Reads wallet settings from the database and refreshes the local cache.
+  ///
+  /// A network failure keeps the cached document. With no cache yet, the
+  /// fallback hides Close wallet and uses XAF.
+  Future<WalletSettings> walletSettings() async {
+    try {
+      final json = await _api.get('/api/me/wallet/settings', token: token);
+      final settings = WalletSettings.fromJson(json);
+      await _settingsCache.write(settings);
+      return settings;
+    } catch (_) {
+      return await _settingsCache.read() ?? WalletSettings.fallback;
+    }
+  }
+
+  Future<LinkedAccount> addAccount({
+    required String label,
+    required String kind,
+    required String detail,
+  }) async {
+    final json = await _api.post(
+      '/api/me/wallet/accounts',
+      token: token,
+      body: {'label': label, 'kind': kind, 'detail': detail},
+    );
+    final created = LinkedAccount.fromJson(json);
+    final fresh = await walletSettings();
+    if (created.id.isNotEmpty &&
+        !fresh.accounts.any((account) => account.id == created.id)) {
+      await _settingsCache.write(
+        fresh.copyWith(accounts: [...fresh.accounts, created]),
+      );
+    }
+    return created;
+  }
+
+  Future<void> removeAccount(String id) async {
+    await _api.delete(
+      '/api/me/wallet/accounts/${Uri.encodeComponent(id)}',
+      token: token,
+    );
+    final fresh = await walletSettings();
+    await _settingsCache.write(
+      fresh.copyWith(
+        accounts: [
+          for (final account in fresh.accounts)
+            if (account.id != id) account,
+        ],
+      ),
+    );
+  }
+
+  Future<List<WalletStatement>> statements() async {
+    try {
+      final json = await _api.get('/api/me/wallet/statements', token: token);
+      return WalletStatement.listFrom(json['items'] ?? json['statements']);
+    } on ApiException catch (error) {
+      if (error.status == 404) return const [];
+      rethrow;
+    }
+  }
+
+  Future<WalletStatement> requestStatement({
+    required String period,
+    required String currency,
+  }) async {
+    final json = await _api.post(
+      '/api/me/wallet/statements',
+      token: token,
+      body: {'period': period, 'currency': canonicalCurrency(currency)},
+    );
+    return WalletStatement.fromJson(json);
+  }
+
+  Future<void> removeStatement(String id) async {
+    await _api.delete(
+      '/api/me/wallet/statements/${Uri.encodeComponent(id)}',
+      token: token,
+    );
+  }
+
+  Future<WalletClosure> closeWallet() async {
+    final json = await _api.post('/api/me/wallet/close', token: token);
+    return WalletClosure.fromJson(json);
+  }
+
   Future<List<AccountDevice>> devices() async {
     final json = await _api.get('/api/auth/devices', token: token);
     final raw = json['items'];
@@ -510,6 +615,34 @@ class MoneyRepository {
             entry.map((key, value) => MapEntry(key.toString(), value)),
           ),
     ];
+  }
+
+  Future<AccountDevice> renameDevice({
+    required String id,
+    required String label,
+  }) async {
+    final json = await _api.put(
+      '/api/auth/devices/${Uri.encodeComponent(id)}',
+      token: token,
+      body: {'label': label},
+    );
+    if (json.isEmpty) {
+      return AccountDevice(
+        id: id,
+        label: label,
+        model: label,
+        platform: '',
+        lastSeenAt: null,
+      );
+    }
+    return AccountDevice.fromJson(json);
+  }
+
+  Future<void> removeDevice(String id) async {
+    await _api.delete(
+      '/api/auth/devices/${Uri.encodeComponent(id)}',
+      token: token,
+    );
   }
 
   Future<int> signOutOthers() async {
