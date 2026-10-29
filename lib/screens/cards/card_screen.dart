@@ -46,16 +46,7 @@ class _CardScreenState extends State<CardScreen> {
             KpButton(
               label: _frozen ? 'Unfreeze' : 'Freeze',
               style: KpButtonStyle.outline,
-              onTap: () {
-                setState(() => _frozen = !_frozen);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(_frozen ? 'Card unfrozen.' : 'Card frozen.'),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: KpColors.primary,
-                  ),
-                );
-              },
+              onTap: () => _confirmFreeze(context),
             ),
             KpButton(
               label: 'Add funds',
@@ -201,6 +192,71 @@ class _CardScreenState extends State<CardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _confirmFreeze(BuildContext context) {
+    final freezing = !_frozen;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: KpColors.surface,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(22, 4, 22, 26),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: KpStateIcon(
+                  type:
+                      freezing ? KpStateIconType.lock : KpStateIconType.success,
+                  size: 62,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                freezing ? 'Freeze this card?' : 'Unfreeze this card?',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                freezing
+                    ? 'New payments on this card will be declined until you unfreeze it. You can turn it back on at any time.'
+                    : 'Payments on this card will be accepted again as soon as you unfreeze it.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: KpColors.muted,
+                      fontSize: 10.5,
+                      height: 1.5,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              KpButton(
+                label: freezing ? 'Freeze card' : 'Unfreeze card',
+                style: freezing ? KpButtonStyle.danger : KpButtonStyle.primary,
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  setState(() => _frozen = freezing);
+                },
+              ),
+              const SizedBox(height: 4),
+              KpTextLink(
+                'Cancel',
+                color: KpColors.muted,
+                onTap: () => Navigator.of(sheetContext).pop(),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
