@@ -867,12 +867,14 @@ class KpServiceTile extends StatelessWidget {
     required this.label,
     required this.icon,
     this.tone = KpServiceTone.green,
+    this.maxLines = 1,
     this.onTap,
   });
 
   final String label;
   final IconData icon;
   final KpServiceTone tone;
+  final int maxLines;
   final VoidCallback? onTap;
 
   @override
@@ -903,12 +905,14 @@ class KpServiceTile extends StatelessWidget {
           const SizedBox(height: 7),
           Text(
             label,
-            maxLines: 1,
+            maxLines: maxLines,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: KpColors.ink2,
                   fontWeight: FontWeight.w700,
                   fontSize: 10,
+                  height: 1.15,
                 ),
           ),
         ],
