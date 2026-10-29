@@ -4,7 +4,6 @@ import '../../preview/preview_page.dart';
 import '../../theme/kp_theme.dart';
 import '../../widgets/kp_controls.dart';
 import '../../widgets/kp_shell.dart';
-import 'account_entry_screen.dart';
 import 'device_screens.dart';
 import 'help_screens.dart';
 import 'otp_sent_screen.dart';
@@ -59,12 +58,7 @@ class OtpExpiredScreen extends StatelessWidget {
         KpTextLink(
           'Back to login',
           color: KpColors.muted,
-          onTap: () => kpOpen(
-            context,
-            const AccountEntryScreen(),
-            title: 'Login',
-            step: 1,
-          ),
+          onTap: () => kpBackToStart(context),
         ),
       ],
     );
@@ -139,12 +133,7 @@ class OtpLockedScreen extends StatelessWidget {
         KpTextLink(
           'Back to login',
           color: KpColors.muted,
-          onTap: () => kpOpen(
-            context,
-            const AccountEntryScreen(),
-            title: 'Login',
-            step: 1,
-          ),
+          onTap: () => kpBackToStart(context),
         ),
       ],
     );
@@ -346,12 +335,7 @@ class DeviceFailedScreen extends StatelessWidget {
         KpTextLink(
           'Back to login',
           color: KpColors.muted,
-          onTap: () => kpOpen(
-            context,
-            const AccountEntryScreen(),
-            title: 'Login',
-            step: 1,
-          ),
+          onTap: () => kpBackToStart(context),
         ),
       ],
     );

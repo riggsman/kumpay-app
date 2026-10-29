@@ -123,15 +123,17 @@ class OtpSentScreen extends StatelessWidget {
         KpTextLink(
           resent ? 'Back to login' : 'Resend now',
           color: KpColors.muted,
-          onTap: () => kpOpen(
-            context,
-            OtpSentScreen(
-              resent: !resent,
-              forRegistration: forRegistration,
-            ),
-            title: resent ? 'OTP sent' : 'OTP resent',
-            step: resent ? 3 : 9,
-          ),
+          onTap: resent
+              ? () => kpBackToStart(context)
+              : () => kpOpen(
+                    context,
+                    OtpSentScreen(
+                      resent: true,
+                      forRegistration: forRegistration,
+                    ),
+                    title: 'OTP resent',
+                    step: 9,
+                  ),
         ),
       ],
     );

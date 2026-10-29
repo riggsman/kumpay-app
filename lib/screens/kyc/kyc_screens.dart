@@ -419,12 +419,7 @@ class KycSubmittedScreen extends StatelessWidget {
         const SizedBox(height: 20),
         KpButton(
           label: 'Back to home',
-          onTap: () => kpOpen(
-            context,
-            const HomeScreen(),
-            title: 'Home dashboard',
-            step: 23,
-          ),
+          onTap: () => kpBackToStart(context),
         ),
       ],
     );
@@ -630,12 +625,7 @@ class KycApprovedScreen extends StatelessWidget {
         KpTextLink(
           'Back to home',
           color: KpColors.muted,
-          onTap: () => kpOpen(
-            context,
-            const HomeScreen(),
-            title: 'Home dashboard',
-            step: 23,
-          ),
+          onTap: () => kpBackToStart(context),
         ),
       ],
     );

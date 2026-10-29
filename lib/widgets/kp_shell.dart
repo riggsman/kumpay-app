@@ -127,6 +127,22 @@ class KpPhoneFrame extends StatelessWidget {
   }
 }
 
+/// Pops the screen the user is looking at.
+///
+/// The first screen has nowhere to return to, so this does nothing there.
+void kpBack(BuildContext context) {
+  final navigator = Navigator.of(context);
+  if (navigator.canPop()) navigator.pop();
+}
+
+/// Drops every screen pushed above the first one.
+///
+/// Home and sign-in live on that first route, so "Back to home" and
+/// "Back to login" land on the screen that is already there.
+void kpBackToStart(BuildContext context) {
+  Navigator.of(context).popUntil((route) => route.isFirst);
+}
+
 class KpAuthHeader extends StatelessWidget {
   const KpAuthHeader({
     super.key,
@@ -143,11 +159,7 @@ class KpAuthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final back = KpIconButton(
-      icon: Icons.arrow_back_rounded,
-      onTap: onBack,
-      light: light,
-    );
+    final back = _BackButton(onBack: onBack, light: light);
 
     if (!centeredBrand) {
       return Row(
@@ -189,11 +201,7 @@ class KpSimpleHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        KpIconButton(
-          icon: Icons.arrow_back_rounded,
-          onTap: onBack,
-          light: light,
-        ),
+        _BackButton(onBack: onBack, light: light),
         Expanded(
           child: Text(
             title,
@@ -210,6 +218,29 @@ class KpSimpleHeader extends StatelessWidget {
           child: trailing ?? const SizedBox.shrink(),
         ),
       ],
+    );
+  }
+}
+
+/// The round arrow at the top of a screen.
+///
+/// It is left out on the first route, where there is no previous screen.
+/// [onBack] replaces the default pop when a screen needs a different return.
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onBack, required this.light});
+
+  final VoidCallback? onBack;
+  final bool light;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Navigator.canPop(context)) {
+      return const SizedBox(width: 42, height: 42);
+    }
+    return KpIconButton(
+      icon: Icons.arrow_back_rounded,
+      onTap: onBack ?? () => kpBack(context),
+      light: light,
     );
   }
 }
