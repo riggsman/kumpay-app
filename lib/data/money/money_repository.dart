@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../../core/api_client.dart';
 import '../../core/api_exception.dart';
+import '../../features/autopay/autopay_plan.dart';
 import '../../features/services/platform_service.dart';
 import '../../features/transactions/account_limits.dart';
 import '../../features/transactions/transaction_authorizer.dart';
@@ -361,6 +362,34 @@ class MoneyRepository {
       token: token,
       body: {'biometrics': biometrics, 'mfa': mfa},
     );
+  }
+
+  /// The tenant's autopay plan, or null when the method is not deployed yet.
+  Future<AutopayPlan?> fetchAutopay() async {
+    try {
+      final json = await _api.get('/api/me/autopay', token: token);
+      return AutopayPlan.fromJson(json);
+    } on ApiException catch (error) {
+      if (error.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// Writes the plan. Returns null when the method is not deployed yet, so
+  /// the phone keeps the copy it already saved locally.
+  Future<AutopayPlan?> saveAutopay(AutopayPlan plan) async {
+    try {
+      final json = await _api.put(
+        '/api/me/autopay',
+        token: token,
+        body: plan.toJson(),
+      );
+      if (json.isEmpty) return plan;
+      return AutopayPlan.fromJson(json);
+    } on ApiException catch (error) {
+      if (error.status == 404) return null;
+      rethrow;
+    }
   }
 
   Future<ServicePayment> payService({

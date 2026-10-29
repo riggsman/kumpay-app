@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/api_exception.dart';
 import '../../data/demo.dart';
 import '../../data/money/money_repository.dart';
+import '../../features/autopay/autopay_controller.dart';
+import '../../features/autopay/autopay_plan.dart';
 import '../../features/feature_flags/app_feature.dart';
 import '../../features/fees/fee_pay_page.dart';
 import '../../features/services/platform_service.dart';
@@ -20,6 +22,7 @@ import '../../widgets/kp_app_nav.dart';
 import '../../widgets/kp_shell.dart';
 import '../../widgets/kp_visuals.dart';
 import '../home/home_screen.dart';
+import '../profile/autopay_page.dart';
 
 /// 27 — Bills hub.
 class BillsScreen extends StatelessWidget {
@@ -32,8 +35,6 @@ class BillsScreen extends StatelessWidget {
     final schoolsOn = billFeatureEnabled(context, 'school_fees');
     final visibleBills =
         demoBills.where((bill) => _billOn(context, bill)).toList();
-    final autopayCount = (_billOn(context, demoBills[0]) ? 1 : 0) +
-        (_billOn(context, demoBills[2]) ? 1 : 0);
     final platformServices = billsOn
         ? (FeatureFlagsScope.maybeOf(context)?.snapshot.services ??
             const <PlatformService>[])
@@ -97,63 +98,8 @@ class BillsScreen extends StatelessWidget {
             tone: KpTipTone.gold,
             child: Text('School fees are paid from your KumPay wallet.'),
           ),
+        if (billsOn) const _AutopayCard(),
         if (!signedIn && billsOn) ...[
-          if (_billOn(context, demoBills[0]) || _billOn(context, demoBills[2]))
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: KpColors.surface,
-                borderRadius: BorderRadius.circular(KpRadius.lg),
-                border: Border.all(color: KpColors.line),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Autopay',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800, fontSize: 12),
-                      ),
-                      const Spacer(),
-                      KpPill(
-                          label: '$autopayCount active',
-                          tone: KpPillTone.green),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  if (_billOn(context, demoBills[2]))
-                    _AutopayRow(
-                      name: 'Canal+ Premium',
-                      detail: 'Every 5th · 18 000 FCFA',
-                      icon: Icons.live_tv_rounded,
-                      onTap: () => kpOpen(
-                        context,
-                        BillPayScreen(bill: demoBills[2]),
-                        title: 'Canal+',
-                        step: 28,
-                      ),
-                    ),
-                  if (_billOn(context, demoBills[2]) &&
-                      _billOn(context, demoBills[0]))
-                    const SizedBox(height: 6),
-                  if (_billOn(context, demoBills[0]))
-                    _AutopayRow(
-                      name: 'ENEO prepaid',
-                      detail: 'When below 5 000 FCFA',
-                      icon: Icons.bolt_rounded,
-                      onTap: () => kpOpen(
-                        context,
-                        BillPayScreen(bill: demoBills[0]),
-                        title: 'ENEO',
-                        step: 28,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          const SizedBox(height: 14),
           if (_billOn(context, demoBills[0]))
             const KpTip(
               tone: KpTipTone.gold,
@@ -628,36 +574,119 @@ class BillSuccessScreen extends StatelessWidget {
   }
 }
 
-class _AutopayRow extends StatelessWidget {
-  const _AutopayRow({
-    required this.name,
-    required this.detail,
-    required this.icon,
-    required this.onTap,
-  });
+/// Shows the tenant's autopay services only after they enable the feature.
+class _AutopayCard extends StatefulWidget {
+  const _AutopayCard();
 
-  final String name;
-  final String detail;
-  final IconData icon;
-  final VoidCallback onTap;
+  @override
+  State<_AutopayCard> createState() => _AutopayCardState();
+}
+
+class _AutopayCardState extends State<_AutopayCard> {
+  @override
+  void initState() {
+    super.initState();
+    autopayController.addListener(_onPlan);
+    autopayController.ensureLoaded(moneyRepo(context));
+  }
+
+  @override
+  void dispose() {
+    autopayController.removeListener(_onPlan);
+    super.dispose();
+  }
+
+  void _onPlan() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
+    final plan = autopayController.plan;
+    if (!plan.enabled) return const SizedBox.shrink();
+    final rules = [
+      for (final rule in plan.rules)
+        if (billFeatureEnabled(context, rule.serviceId)) rule,
+    ];
+    if (rules.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: KpColors.surface,
+          borderRadius: BorderRadius.circular(KpRadius.lg),
+          border: Border.all(color: KpColors.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Autopay',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                ),
+                const Spacer(),
+                KpPill(
+                  label:
+                      rules.length == 1 ? '1 active' : '${rules.length} active',
+                  tone: KpPillTone.green,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            for (var i = 0; i < rules.length; i++) ...[
+              if (i > 0) const SizedBox(height: 6),
+              _AutopayRuleRow(rule: rules[i]),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AutopayRuleRow extends StatelessWidget {
+  const _AutopayRuleRow({required this.rule});
+
+  final AutopayRule rule;
+
+  @override
+  Widget build(BuildContext context) {
+    final bill = demoBills.cast<KpBill?>().firstWhere(
+          (item) => item?.id == rule.serviceId,
+          orElse: () => null,
+        );
     return InkWell(
-      onTap: onTap,
+      onTap: bill == null
+          ? () => kpOpen(context, const AutopayPage(), title: 'Autopay')
+          : () => kpOpen(
+                context,
+                BillPayScreen(bill: bill),
+                title: 'Pay ${bill.name}',
+                step: 28,
+              ),
       borderRadius: BorderRadius.circular(10),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            Icon(icon, size: 17, color: KpColors.goldDeep),
+            Icon(
+              bill?.icon ?? Icons.receipt_long_outlined,
+              size: 17,
+              color: KpColors.goldDeep,
+            ),
             const SizedBox(width: 9),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    rule.serviceName,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: KpColors.ink,
                           fontWeight: FontWeight.w700,
@@ -665,11 +694,11 @@ class _AutopayRow extends StatelessWidget {
                         ),
                   ),
                   Text(
-                    detail,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: KpColors.muted, fontSize: 9),
+                    rule.detail,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: KpColors.muted,
+                          fontSize: 9,
+                        ),
                   ),
                 ],
               ),

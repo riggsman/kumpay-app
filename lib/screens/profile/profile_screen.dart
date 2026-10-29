@@ -8,6 +8,7 @@ import '../../data/notifications/notifications_repository.dart';
 import '../../data/pin/pin_repository.dart';
 import '../../data/refunds/refunds_repository.dart';
 import '../../data/support/support_repository.dart';
+import '../../features/autopay/autopay_controller.dart';
 import '../../features/feature_flags/app_feature.dart';
 import '../../features/kyc/kyc_page.dart';
 import '../../features/transactions/account_limits.dart';
@@ -32,6 +33,7 @@ import '../auth/help_screens.dart';
 import '../kyc/kyc_screens.dart';
 import '../wallet/activity_screen.dart';
 import '../wallet/wallet_screen.dart';
+import 'autopay_page.dart';
 import 'change_pin_screen.dart';
 import 'language_screen.dart';
 
@@ -57,7 +59,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     languageChoice.addListener(_onLanguage);
+    autopayController.addListener(_onLanguage);
     WidgetsBinding.instance.addObserver(this);
+    autopayController.ensureLoaded(moneyRepo(context));
     final repo = moneyRepo(context);
     if (repo == null) return;
     repo.wallet().then((wallet) {
@@ -130,9 +134,18 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (mounted) setState(() {});
   }
 
+  String _autopayLabel() {
+    final plan = autopayController.plan;
+    if (!plan.enabled) return 'Off';
+    final count = plan.rules.length;
+    if (count == 0) return 'On';
+    return count == 1 ? '1 active' : '$count active';
+  }
+
   @override
   void dispose() {
     languageChoice.removeListener(_onLanguage);
+    autopayController.removeListener(_onLanguage);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -392,6 +405,18 @@ class _ProfileScreenState extends State<ProfileScreen>
               signedIn == null ? '3' : (_phoneCount?.toString() ?? '…'),
           onTap: () =>
               kpOpen(context, const WalletScreen(), title: 'Wallet', step: 24),
+        ),
+        const SizedBox(height: 8),
+        const KpSectionHeader(title: 'Payments'),
+        KpSettingsTile(
+          title: 'Autopay',
+          icon: Icons.event_repeat_rounded,
+          trailingText: _autopayLabel(),
+          onTap: () => kpOpen(
+            context,
+            const AutopayPage(),
+            title: 'Autopay',
+          ),
         ),
         const SizedBox(height: 8),
         const KpSectionHeader(title: 'Security'),

@@ -18,6 +18,7 @@ import 'package:kumpay_uiux/screens/bills/bills_screen.dart';
 import 'package:kumpay_uiux/screens/cards/card_screen.dart';
 import 'package:kumpay_uiux/screens/home/home_screen.dart';
 import 'package:kumpay_uiux/screens/kyc/kyc_screens.dart';
+import 'package:kumpay_uiux/screens/profile/autopay_page.dart';
 import 'package:kumpay_uiux/screens/profile/change_pin_screen.dart';
 import 'package:kumpay_uiux/screens/profile/language_screen.dart';
 import 'package:kumpay_uiux/screens/profile/profile_screen.dart';
@@ -71,6 +72,7 @@ final _screens = <String, Widget Function()>{
   'Notifications': () => const NotificationsScreen(),
   'Language': () => const LanguageScreen(),
   'Change PIN': () => const ChangePinScreen(),
+  'Autopay': () => const AutopayPage(),
   'Add money': () => const TopUpScreen(),
   'Fund card': () => const TopUpScreen(usd: true),
 };
