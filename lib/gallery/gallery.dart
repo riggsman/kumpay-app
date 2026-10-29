@@ -15,6 +15,7 @@ import '../screens/bills/bills_screen.dart';
 import '../screens/cards/card_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/kyc/kyc_screens.dart';
+import '../screens/profile/autopay_page.dart';
 import '../screens/profile/change_pin_screen.dart';
 import '../screens/profile/language_screen.dart';
 import '../screens/profile/profile_screen.dart';
@@ -137,6 +138,8 @@ class KpGallery extends StatelessWidget {
             () => const LanguageScreen()),
         _Entry('S1', 'Change PIN', 'Current PIN → OTP → new PIN.',
             () => const ChangePinScreen()),
+        _Entry('A1', 'Autopay', 'The tenant turns automatic payments on.',
+            () => const AutopayPage()),
         _Entry('W1', 'Add money', 'Deposit and withdraw methods.',
             () => const TopUpScreen()),
         _Entry('C1', 'Fund card', 'USD top-up from the wallet.',

@@ -100,6 +100,9 @@ does not cover the amount, and that decision stays on the server.
 The methods the backend has to expose are written in [FEATURE_FLAGS.md](FEATURE_FLAGS.md)
 and [PLATFORM_SERVICES.md](PLATFORM_SERVICES.md).
 
+Autopay stays off until the account holder turns it on from Profile and adds
+each service, amount, and schedule. The contract is in [AUTOPAY.md](AUTOPAY.md).
+
 ## Notes
 
 - `google_fonts` fetches Manrope/Bricolage at runtime. For offline builds, add
