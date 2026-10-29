@@ -13,7 +13,8 @@ MoneyRepository? moneyRepo(BuildContext context) {
 }
 
 class WalletBalanceText extends StatefulWidget {
-  const WalletBalanceText({super.key, required this.fallback, this.usd = false});
+  const WalletBalanceText(
+      {super.key, required this.fallback, this.usd = false});
 
   final String fallback;
   final bool usd;
@@ -42,7 +43,11 @@ class _WalletBalanceTextState extends State<WalletBalanceText> {
 
 /// Replaces a balance string once the signed-in wallet loads.
 class WalletAmount extends StatefulWidget {
-  const WalletAmount({super.key, required this.fallback, required this.builder, this.usd = false});
+  const WalletAmount(
+      {super.key,
+      required this.fallback,
+      required this.builder,
+      this.usd = false});
 
   final String fallback;
   final bool usd;
@@ -67,7 +72,8 @@ class _WalletAmountState extends State<WalletAmount> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.builder(context, _live ?? widget.fallback);
+  Widget build(BuildContext context) =>
+      widget.builder(context, _live ?? widget.fallback);
 }
 
 class LiveActivityList extends StatefulWidget {
@@ -158,53 +164,11 @@ class _LiveActivityListState extends State<LiveActivityList> {
                 : formatXaf(list[i].amount.amount).replaceAll(' FCFA', ''),
             currency: list[i].amount.currency == 'USD' ? 'USD' : 'FCFA',
             incoming: list[i].incoming,
-            icon: list[i].incoming ? Icons.south_west_rounded : Icons.north_east_rounded,
+            icon: list[i].incoming
+                ? Icons.south_west_rounded
+                : Icons.north_east_rounded,
             showDivider: i < list.length - 1,
           ),
-      ],
-    );
-  }
-}
-
-class LinkedPhones extends StatefulWidget {
-  const LinkedPhones({super.key});
-
-  @override
-  State<LinkedPhones> createState() => _LinkedPhonesState();
-}
-
-class _LinkedPhonesState extends State<LinkedPhones> {
-  List<({String number, String kind})>? _phones;
-
-  @override
-  void initState() {
-    super.initState();
-    final repo = moneyRepo(context);
-    if (repo == null) return;
-    repo.wallet().then((wallet) {
-      if (mounted) setState(() => _phones = wallet.phones);
-    }).catchError((_) {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final phones = _phones;
-    if (phones == null) {
-      return const KpDetailCard(
-        rows: [
-          KpDetailRow('MTN Mobile Money', '+237 677 ••• 456'),
-          KpDetailRow('Orange Money', '+237 699 ••• 118'),
-          KpDetailRow('Afriland First Bank', '•••• 3391'),
-        ],
-      );
-    }
-    if (phones.isEmpty) {
-      return const KpDetailCard(rows: [KpDetailRow('Phone numbers', 'None on this account')]);
-    }
-    return KpDetailCard(
-      rows: [
-        for (final phone in phones)
-          KpDetailRow(phone.kind == 'topup' ? 'Top-up number' : 'Primary number', phone.number),
       ],
     );
   }

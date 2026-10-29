@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/demo.dart';
 import '../../features/money/live_money.dart';
+import 'statements_page.dart';
 import '../../state/auth_scope.dart';
 import '../../theme/kp_theme.dart';
 import '../../widgets/kp_controls.dart';
@@ -49,95 +50,89 @@ class _ActivityScreenState extends State<ActivityScreen> {
         if (AuthScope.maybeRead(context)?.sessionToken != null) ...[
           LiveActivityList(limit: 50, filter: _filter),
         ] else ...[
-        const Row(
-          children: [
-            _Summary(
-              label: 'Money in',
-              value: '+50 000',
-              color: KpColors.success,
-              icon: Icons.south_west_rounded,
+          const Row(
+            children: [
+              _Summary(
+                label: 'Money in',
+                value: '+50 000',
+                color: KpColors.success,
+                icon: Icons.south_west_rounded,
+              ),
+              SizedBox(width: 8),
+              _Summary(
+                label: 'Money out',
+                value: '-192 500',
+                color: KpColors.danger,
+                icon: Icons.north_east_rounded,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Today',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: KpColors.muted,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+          ),
+          const SizedBox(height: 2),
+          for (var i = 0; i < items.length && i < 1; i++)
+            KpActivityTile(
+              title: items[i].title,
+              subtitle: items[i].subtitle,
+              amount: items[i].amount,
+              currency: items[i].currency,
+              incoming: items[i].incoming,
+              icon: items[i].icon,
+              showDivider: false,
             ),
-            SizedBox(width: 8),
-            _Summary(
-              label: 'Money out',
-              value: '-192 500',
-              color: KpColors.danger,
-              icon: Icons.north_east_rounded,
+          const SizedBox(height: 10),
+          Text(
+            'Earlier',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: KpColors.muted,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+          ),
+          const SizedBox(height: 2),
+          for (var i = 1; i < items.length; i++)
+            KpActivityTile(
+              title: items[i].title,
+              subtitle: items[i].subtitle,
+              amount: items[i].amount,
+              currency: items[i].currency,
+              incoming: items[i].incoming,
+              icon: items[i].icon,
+              showDivider: i < items.length - 1,
+            ),
+          if (items.isEmpty) ...[
+            const SizedBox(height: 30),
+            const Center(
+                child: KpStateIcon(type: KpStateIconType.info, size: 72)),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                'No transactions in this filter yet.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: KpColors.muted,
+                      fontSize: 10.5,
+                    ),
+              ),
             ),
           ],
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Today',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: KpColors.muted,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-              ),
-        ),
-        const SizedBox(height: 2),
-        for (var i = 0; i < items.length && i < 1; i++)
-          KpActivityTile(
-            title: items[i].title,
-            subtitle: items[i].subtitle,
-            amount: items[i].amount,
-            currency: items[i].currency,
-            incoming: items[i].incoming,
-            icon: items[i].icon,
-            showDivider: false,
-          ),
-        const SizedBox(height: 10),
-        Text(
-          'Earlier',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: KpColors.muted,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-              ),
-        ),
-        const SizedBox(height: 2),
-        for (var i = 1; i < items.length; i++)
-          KpActivityTile(
-            title: items[i].title,
-            subtitle: items[i].subtitle,
-            amount: items[i].amount,
-            currency: items[i].currency,
-            incoming: items[i].incoming,
-            icon: items[i].icon,
-            showDivider: i < items.length - 1,
-          ),
-        if (items.isEmpty) ...[
-          const SizedBox(height: 30),
-          const Center(
-              child: KpStateIcon(type: KpStateIconType.info, size: 72)),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              'No transactions in this filter yet.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: KpColors.muted,
-                    fontSize: 10.5,
-                  ),
-            ),
-          ),
-        ],
         ],
         const SizedBox(height: 14),
         KpButton(
           label: 'Download statement',
           style: KpButtonStyle.outline,
           icon: Icons.download_outlined,
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                AuthScope.maybeRead(context)?.sessionToken != null
-                    ? 'Statements are not available yet.'
-                    : 'Statement for May 2026 is being prepared.',
-              ),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: KpColors.primary,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => StatementsPage(repository: moneyRepo(context)),
             ),
           ),
         ),

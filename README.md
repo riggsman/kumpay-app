@@ -100,6 +100,10 @@ does not cover the amount, and that decision stays on the server.
 The methods the backend has to expose are written in [FEATURE_FLAGS.md](FEATURE_FLAGS.md)
 and [PLATFORM_SERVICES.md](PLATFORM_SERVICES.md).
 
+Wallet settings — the default currency, linked accounts, statements, linked
+devices, and whether Close wallet is offered — are read from the database and
+cached on the phone. The contract is [WALLET_SETTINGS.md](WALLET_SETTINGS.md).
+
 ## Notes
 
 - `google_fonts` fetches Manrope/Bricolage at runtime. For offline builds, add

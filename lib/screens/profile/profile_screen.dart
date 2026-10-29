@@ -14,7 +14,6 @@ import '../../features/transactions/account_limits.dart';
 import '../../state/feature_flags_scope.dart';
 import '../../features/pin/pin_page.dart';
 import '../../features/refunds/refunds_page.dart';
-import '../../data/money/money_repository.dart';
 import '../../features/money/live_money.dart';
 import '../../features/support/support_page.dart';
 import '../../data/demo.dart';
@@ -31,6 +30,7 @@ import '../auth/change_phone_screen.dart';
 import '../auth/help_screens.dart';
 import '../kyc/kyc_screens.dart';
 import '../wallet/activity_screen.dart';
+import '../wallet/devices_page.dart';
 import '../wallet/wallet_screen.dart';
 import 'change_pin_screen.dart';
 import 'language_screen.dart';
@@ -439,7 +439,11 @@ class _ProfileScreenState extends State<ProfileScreen>
         KpSettingsTile(
           title: 'Devices & sessions',
           icon: Icons.devices_outlined,
-          onTap: () => _showDevicesSheet(context),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => DevicesPage(repository: moneyRepo(context)),
+            ),
+          ),
         ),
         const SizedBox(height: 8),
         const KpSectionHeader(title: 'Preferences'),
@@ -591,51 +595,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  void _showDevicesSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: KpColors.surface,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Devices & sessions',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              _DeviceList(repo: moneyRepo(context)),
-              const SizedBox(height: 12),
-              KpButton(
-                label: 'Sign out other devices',
-                style: KpButtonStyle.outline,
-                onTap: () async {
-                  final repo = moneyRepo(context);
-                  if (repo == null) {
-                    Navigator.of(sheetContext).pop();
-                    return;
-                  }
-                  await repo.signOutOthers();
-                  if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   void _showLogoutSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -742,42 +701,6 @@ class _ProfileStat extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _DeviceList extends StatelessWidget {
-  const _DeviceList({required this.repo});
-
-  final MoneyRepository? repo;
-
-  @override
-  Widget build(BuildContext context) {
-    if (repo == null) {
-      return const KpDetailCard(
-        rows: [
-          KpDetailRow('This device', 'iPhone 15 Pro · Douala'),
-          KpDetailRow('Last active', 'Now'),
-          KpDetailRow('Other sessions', 'Android · Yaoundé'),
-        ],
-      );
-    }
-    return FutureBuilder<List<AccountDevice>>(
-      future: repo!.devices(),
-      builder: (context, snapshot) {
-        final devices = snapshot.data ?? const <AccountDevice>[];
-        if (devices.isEmpty) {
-          return const KpDetailCard(
-            rows: [KpDetailRow('Devices', 'None captured yet')],
-          );
-        }
-        return KpDetailCard(
-          rows: [
-            for (final device in devices)
-              KpDetailRow(device.platform, device.model),
-          ],
-        );
-      },
     );
   }
 }

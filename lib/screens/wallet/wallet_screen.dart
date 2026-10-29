@@ -6,6 +6,7 @@ import '../../data/demo.dart';
 import '../../features/cards/cards_page.dart';
 import '../../features/feature_flags/app_feature.dart';
 import '../../features/money/live_money.dart';
+import '../../features/wallet/wallet_settings.dart';
 import '../../state/auth_scope.dart';
 import '../../state/feature_flags_scope.dart';
 import '../../preview/preview_page.dart';
@@ -17,8 +18,12 @@ import '../../widgets/kp_shell.dart';
 import '../../widgets/kp_visuals.dart';
 import '../cards/card_screen.dart';
 import 'activity_screen.dart';
+import 'devices_page.dart';
+import 'linked_accounts_page.dart';
+import 'statements_page.dart';
 import 'top_up_screen.dart';
 import 'transfer_screen.dart';
+import 'wallet_settings_sheet.dart';
 
 /// 24 — Wallet overview.
 class WalletScreen extends StatefulWidget {
@@ -30,10 +35,72 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   int _tab = 0;
+  var _tabTouched = false;
+  var _settingsLoaded = false;
+  WalletSettings _settings = WalletSettings.fallback;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final repo = moneyRepo(context);
+    if (repo == null) return;
+    final cached = await repo.cachedSettings();
+    if (mounted && cached != null) _applySettings(cached);
+    final fresh = await repo.walletSettings();
+    if (mounted) _applySettings(fresh);
+  }
+
+  void _applySettings(WalletSettings settings) {
+    setState(() {
+      _settings = settings;
+      _settingsLoaded = true;
+      if (!_tabTouched) {
+        _tab = settings.defaultCurrency == 'USD' ? 1 : 0;
+      }
+    });
+  }
+
+  bool get _showXaf => _settings.offers('XAF');
+  bool get _showUsd => _settings.offers('USD');
+
+  int get _visibleTab {
+    if (_showUsd && !_showXaf) return 1;
+    if (!_showUsd) return 0;
+    return _tab;
+  }
+
+  Future<void> _openAccounts() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LinkedAccountsPage(repository: moneyRepo(context)),
+      ),
+    );
+    if (mounted) await _loadSettings();
+  }
+
+  Future<void> _openStatements() {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => StatementsPage(repository: moneyRepo(context)),
+      ),
+    );
+  }
+
+  Future<void> _openDevices() {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DevicesPage(repository: moneyRepo(context)),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final xaf = _tab == 0;
+    final xaf = _visibleTab == 0;
     final deposit = FeatureFlagsScope.enabled(context, AppFeature.deposit);
     final send = FeatureFlagsScope.enabled(context, AppFeature.send);
     final withdrawal = FeatureFlagsScope.enabled(
@@ -54,14 +121,19 @@ class _WalletScreenState extends State<WalletScreen> {
       ),
       bottomNav: kpAppNav(context, active: KpTab.wallet),
       children: [
-        KpSegmentedTabs(
-          tabs: const ['FCFA wallet', 'USD wallet'],
-          index: _tab,
-          onChanged: (i) => setState(() => _tab = i),
-        ),
-        const SizedBox(height: 12),
+        if (_showXaf && _showUsd) ...[
+          KpSegmentedTabs(
+            tabs: const ['FCFA wallet', 'USD wallet'],
+            index: _visibleTab,
+            onChanged: (i) => setState(() {
+              _tabTouched = true;
+              _tab = i;
+            }),
+          ),
+          const SizedBox(height: 12),
+        ],
         WalletAmount(
-          key: ValueKey(_tab),
+          key: ValueKey(_visibleTab),
           usd: !xaf,
           fallback: xaf ? formatXaf(demoUser.xaf) : '\$120.50',
           builder: (context, amount) => KpBalanceCard(
@@ -75,19 +147,19 @@ class _WalletScreenState extends State<WalletScreen> {
             showSecondary: send,
             onPrimary: deposit
                 ? () => kpOpen(
-                    context,
-                    TopUpScreen(usd: !xaf),
-                    title: 'Add money',
-                    step: 0,
-                  )
+                      context,
+                      TopUpScreen(usd: !xaf),
+                      title: 'Add money',
+                      step: 0,
+                    )
                 : null,
             onSecondary: send
                 ? () => kpOpen(
-                    context,
-                    const TransferScreen(),
-                    title: 'Send money',
-                    step: 25,
-                  )
+                      context,
+                      const TransferScreen(),
+                      title: 'Send money',
+                      step: 25,
+                    )
                 : null,
           ),
         ),
@@ -138,10 +210,14 @@ class _WalletScreenState extends State<WalletScreen> {
         KpSectionHeader(
           title: 'Linked accounts',
           action: 'Manage',
-          onAction: () => _showWalletSettings(context),
+          onAction: _openAccounts,
         ),
         const SizedBox(height: 8),
-        const LinkedPhones(),
+        LinkedAccountsCard(
+          signedIn: AuthScope.maybeRead(context)?.sessionToken != null,
+          loaded: _settingsLoaded,
+          accounts: _settings.accounts,
+        ),
         const SizedBox(height: 16),
         KpSectionHeader(
           title: 'Recent activity',
@@ -167,72 +243,47 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _showWalletSettings(BuildContext context) {
-    final signedIn = AuthScope.maybeRead(context)?.sessionToken != null;
+    final repo = moneyRepo(context);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: KpColors.surface,
       showDragHandle: true,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Wallet settings',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
+        return WalletSettingsSheet(
+          repository: repo,
+          initial: repo == null ? null : (_settingsLoaded ? _settings : null),
+          onAccounts: () {
+            Navigator.of(sheetContext).pop();
+            _openAccounts();
+          },
+          onStatements: () {
+            Navigator.of(sheetContext).pop();
+            _openStatements();
+          },
+          onDevices: () {
+            Navigator.of(sheetContext).pop();
+            _openDevices();
+          },
+          onWalletClosed: (result) async {
+            Navigator.of(sheetContext).pop();
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result.message),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: KpColors.primary,
               ),
-              const SizedBox(height: 8),
-              KpSettingsTile(
-                title: 'Default currency',
-                icon: Icons.currency_exchange_rounded,
-                trailingText: 'FCFA',
-                onTap: () => Navigator.of(sheetContext).pop(),
-              ),
-              KpSettingsTile(
-                title: 'Linked accounts',
-                icon: Icons.account_balance_wallet_outlined,
-                trailingText: signedIn ? 'On this page' : '3 linked',
-                onTap: () => Navigator.of(sheetContext).pop(),
-              ),
-              KpSettingsTile(
-                title: 'Statements',
-                icon: Icons.description_outlined,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  if (!signedIn) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Statements are not available yet.'),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: KpColors.primary,
-                    ),
-                  );
-                },
-              ),
-              KpSettingsTile(
-                title: 'Close wallet',
-                icon: Icons.link_off_rounded,
-                danger: true,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  if (!signedIn) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Closing a wallet is not available.'),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: KpColors.primary,
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+            );
+            if (result.closed || result.signedOut) {
+              await AuthScope.maybeRead(context)?.signOut();
+              if (!context.mounted) return;
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
+          },
         );
       },
     );
