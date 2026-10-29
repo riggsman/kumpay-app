@@ -7,6 +7,7 @@ import '../../data/notifications/notifications_repository.dart';
 import '../../data/kyc/kyc_repository.dart';
 import '../../features/cards/cards_page.dart';
 import '../../features/feature_flags/app_feature.dart';
+import '../../features/feature_flags/platform_alert.dart';
 import '../../features/kyc/kyc_page.dart';
 import '../../features/services/platform_service.dart';
 import '../../features/services/service_pay_page.dart';
@@ -40,10 +41,11 @@ class HomeScreen extends StatelessWidget {
     final send = FeatureFlagsScope.enabled(context, AppFeature.send);
     final bills = FeatureFlagsScope.enabled(context, AppFeature.bills);
     final eneo = FeatureFlagsScope.enabled(context, AppFeature.eneo);
+    final snapshot = FeatureFlagsScope.maybeOf(context)?.snapshot;
     final platformServices = bills
-        ? (FeatureFlagsScope.maybeOf(context)?.snapshot.services ??
-            const <PlatformService>[])
+        ? (snapshot?.services ?? const <PlatformService>[])
         : const <PlatformService>[];
+    final alert = snapshot?.alert;
     return KpPage(
       padding: const EdgeInsets.fromLTRB(22, 6, 22, 14),
       header: Row(
@@ -89,16 +91,6 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           _BellButton(token: AuthScope.maybeRead(context)?.sessionToken),
-          const SizedBox(width: 8),
-          KpIconButton(
-            icon: Icons.settings_outlined,
-            onTap: () => kpOpen(
-              context,
-              const ProfileScreen(),
-              title: 'Profile & settings',
-              step: 31,
-            ),
-          ),
         ],
       ),
       bottomNav: kpAppNav(context, active: KpTab.home),
@@ -315,8 +307,16 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: 4),
         const LiveActivityList(limit: 4),
         const SizedBox(height: 6),
-        if (signedIn == null && eneo && bills)
+        if (alert != null && alert.enabled)
           _GoldPromo(
+            title: alert.title,
+            message: alert.message,
+            onTap: _alertAction(context, alert, bills: bills, send: send),
+          )
+        else if (alert == null && signedIn == null && eneo && bills)
+          _GoldPromo(
+            title: 'Zero fees on ENEO this week',
+            message: 'Pay any prepaid meter before Sunday.',
             onTap: () => kpOpen(
               context,
               const BillsScreen(),
@@ -436,10 +436,45 @@ String _kycSubtitle(String kyc) {
   };
 }
 
-class _GoldPromo extends StatelessWidget {
-  const _GoldPromo({required this.onTap});
+VoidCallback? _alertAction(
+  BuildContext context,
+  PlatformAlert alert, {
+  required bool bills,
+  required bool send,
+}) {
+  return switch (alert.action) {
+    'bills' when bills => () => kpOpen(
+          context,
+          const BillsScreen(),
+          title: 'Pay bills',
+          step: 27,
+        ),
+    'wallet' => () => kpOpen(
+          context,
+          const WalletScreen(),
+          title: 'Wallet',
+          step: 24,
+        ),
+    'send' when send => () => kpOpen(
+          context,
+          const TransferScreen(),
+          title: 'Send money',
+          step: 25,
+        ),
+    _ => null,
+  };
+}
 
-  final VoidCallback onTap;
+class _GoldPromo extends StatelessWidget {
+  const _GoldPromo({
+    required this.title,
+    required this.message,
+    required this.onTap,
+  });
+
+  final String title;
+  final String message;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -474,29 +509,32 @@ class _GoldPromo extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Zero fees on ENEO this week',
+                    title,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: KpColors.ink,
                           fontWeight: FontWeight.w800,
                           fontSize: 11,
                         ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Pay any prepaid meter before Sunday.',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: KpColors.ink2, fontSize: 9.5),
-                  ),
+                  if (message.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      message,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: KpColors.ink2, fontSize: 9.5),
+                    ),
+                  ],
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: KpColors.goldDeep,
-            ),
+            if (onTap != null)
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: KpColors.goldDeep,
+              ),
           ],
         ),
       ),

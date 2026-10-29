@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../services/platform_service.dart';
 import 'app_feature.dart';
+import 'platform_alert.dart';
 
 /// One consistent view of every platform feature flag.
 class FeatureFlagsSnapshot {
@@ -10,6 +11,7 @@ class FeatureFlagsSnapshot {
     required this.version,
     this.updatedAt,
     this.services = const [],
+    this.alert,
   });
 
   final Map<String, bool> flags;
@@ -20,6 +22,9 @@ class FeatureFlagsSnapshot {
 
   /// Services the platform has published. Empty until the snapshot includes them.
   final List<PlatformService> services;
+
+  /// Marketing alert. Null until the snapshot includes an `alert` object.
+  final PlatformAlert? alert;
 
   factory FeatureFlagsSnapshot.defaults() {
     return FeatureFlagsSnapshot(
@@ -47,6 +52,7 @@ class FeatureFlagsSnapshot {
       version: (json['version'] as num?)?.toInt() ?? 0,
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
       services: PlatformService.listFrom(json['services']),
+      alert: PlatformAlert.tryParse(json['alert']),
     );
   }
 
@@ -58,7 +64,8 @@ class FeatureFlagsSnapshot {
     return other is FeatureFlagsSnapshot &&
         other.version == version &&
         mapEquals(other.flags, flags) &&
-        _sameServices(other.services, services);
+        _sameServices(other.services, services) &&
+        other.alert == alert;
   }
 
   @override
@@ -68,6 +75,7 @@ class FeatureFlagsSnapshot {
           flags.entries.map((entry) => Object.hash(entry.key, entry.value)),
         ),
         Object.hashAll(services),
+        alert,
       );
 }
 

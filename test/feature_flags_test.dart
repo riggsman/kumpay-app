@@ -155,6 +155,79 @@ void main() {
     expect(find.text('CAMWATER'), findsOneWidget);
     expect(find.text('DStv'), findsOneWidget);
   });
+
+  test('an alert is on only when the platform enables it and gives it a title',
+      () {
+    final on = FeatureFlagsSnapshot.fromJson({
+      'version': 5,
+      'alert': {
+        'enabled': true,
+        'title': 'Market day',
+        'body': 'Fees are waived until Sunday.',
+        'action': 'wallet',
+      },
+    });
+    final off = FeatureFlagsSnapshot.fromJson({
+      'version': 6,
+      'alert': {'enabled': false, 'title': 'Market day'},
+    });
+
+    expect(on.alert?.enabled, isTrue);
+    expect(on.alert?.title, 'Market day');
+    expect(on.alert?.message, 'Fees are waived until Sunday.');
+    expect(on.alert?.action, 'wallet');
+    expect(off.alert?.enabled, isFalse);
+    expect(FeatureFlagsSnapshot.fromJson({'version': 1}).alert, isNull);
+  });
+
+  testWidgets('home follows the platform marketing alert', (tester) async {
+    final controller = FeatureFlagsController(
+      repository: const StaticFeatureFlagsRepository(
+        FeatureFlagsSnapshot(flags: {}, version: 0),
+      ),
+    );
+    addTearDown(controller.dispose);
+    controller.applySnapshot(
+      FeatureFlagsSnapshot.fromJson({
+        'version': 2,
+        'flags': {'bills': true},
+        'alert': {
+          'enabled': true,
+          'title': 'Market day',
+          'message': 'Fees are waived until Sunday.',
+          'action': 'bills',
+        },
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KpTheme.light(),
+        home: FeatureFlagsScope(
+          controller: controller,
+          child: const Material(child: HomeScreen()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byIcon(Icons.settings_outlined), findsNothing);
+    expect(find.text('Market day'), findsOneWidget);
+    expect(find.text('Fees are waived until Sunday.'), findsOneWidget);
+    expect(find.text('Zero fees on ENEO this week'), findsNothing);
+
+    controller.applySnapshot(
+      FeatureFlagsSnapshot.fromJson({
+        'version': 3,
+        'flags': {'bills': true},
+        'alert': {'enabled': false},
+      }),
+    );
+    await tester.pump();
+
+    expect(find.text('Market day'), findsNothing);
+    expect(find.text('Zero fees on ENEO this week'), findsNothing);
+  });
 }
 
 class _ScriptedFlags implements FeatureFlagsRepository {

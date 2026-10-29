@@ -82,6 +82,28 @@ Accept: application/json
 
 `services` is the catalog from [PLATFORM_SERVICES.md](PLATFORM_SERVICES.md). Omitting the array leaves the catalog empty. A service with no recognized field is not shown.
 
+## Marketing alert
+
+The gold alert on Home is optional. Omit `alert` and the phone keeps its built-in preview for signed-out design screens only. To run a campaign, put `alert` on the same snapshot and bump `version`. The live stream and the 4-second poll apply it with no app release.
+
+```json
+"alert": {
+  "enabled": true,
+  "title": "Zero fees on ENEO this week",
+  "message": "Pay any prepaid meter before Sunday.",
+  "action": "bills"
+}
+```
+
+| Field | Rule |
+| --- | --- |
+| `enabled` | Only `true` shows the alert. `false`, or a title that is blank, hides it for everyone, including the built-in preview |
+| `title` | Required when the alert is on. This is the bold line |
+| `message` | Optional second line. `body` is accepted as the same field |
+| `action` | `bills`, `wallet`, or `send`. Anything else leaves the alert on Home with no chevron. `bills` and `send` also respect those feature flags |
+
+Turning a campaign off is the same snapshot with `"enabled": false`.
+
 ## `GET /api/features/stream`
 
 No authentication. `Content-Type: text/event-stream`. Keep the connection open and send one full snapshot (not a patch) whenever a flag changes. Send a comment heartbeat about every 15 seconds so proxies do not close the socket.
