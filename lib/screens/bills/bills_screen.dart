@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../core/api_exception.dart';
 import '../../data/demo.dart';
 import '../../data/money/money_repository.dart';
+import '../../features/feature_flags/app_feature.dart';
 import '../../features/fees/fee_pay_page.dart';
 import '../../features/money/live_money.dart';
+import '../../features/transactions/transaction_authorizer.dart';
+import '../../features/transactions/transaction_gate.dart';
 import '../../state/auth_scope.dart';
+import '../../state/feature_flags_scope.dart';
 import '../../preview/preview_page.dart';
 import '../../theme/kp_theme.dart';
 import '../../widgets/kp_controls.dart';
@@ -21,6 +26,12 @@ class BillsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final signedIn = AuthScope.maybeRead(context)?.sessionToken != null;
+    final billsOn = FeatureFlagsScope.enabled(context, AppFeature.bills);
+    final schoolsOn = billFeatureEnabled(context, 'school_fees');
+    final visibleBills =
+        demoBills.where((bill) => _billOn(context, bill)).toList();
+    final autopayCount = (_billOn(context, demoBills[0]) ? 1 : 0) +
+        (_billOn(context, demoBills[2]) ? 1 : 0);
     return KpPage(
       bottomNav: kpAppNav(context, active: KpTab.pay),
       header: KpSimpleHeader(
@@ -39,10 +50,14 @@ class BillsScreen extends StatelessWidget {
               Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 22),
         ),
         const SizedBox(height: 12),
-        if (signedIn)
-          const _LiveBillers()
-        else
-          for (final bill in demoBills) ...[
+        if (!billsOn)
+          const KpTip(
+            tone: KpTipTone.info,
+            child: Text('Bill payments are turned off right now.'),
+          ),
+        if (billsOn && signedIn && schoolsOn) const _LiveBillers(),
+        if (billsOn)
+          for (final bill in visibleBills) ...[
             KpBillerChip(
               bill: bill,
               onTap: () => kpOpen(
@@ -54,110 +69,120 @@ class BillsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-        if (signedIn) ...[
+        if (billsOn && signedIn && schoolsOn) ...[
           const SizedBox(height: 14),
           const KpTip(
             tone: KpTipTone.gold,
             child: Text('School fees are paid from your KumPay wallet.'),
           ),
         ],
-        if (!signedIn) ...[
-        const SizedBox(height: 10),
-        const KpSectionHeader(title: 'Categories'),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: KpServiceTile(
-                label: 'Airtime',
-                icon: Icons.smartphone_rounded,
-                onTap: () => _soon(context, 'Airtime top-up'),
-              ),
-            ),
-            Expanded(
-              child: KpServiceTile(
-                label: 'Internet',
-                icon: Icons.wifi_rounded,
-                tone: KpServiceTone.info,
-                onTap: () => _soon(context, 'Internet bundles'),
-              ),
-            ),
-            Expanded(
-              child: KpServiceTile(
-                label: 'School fees',
-                icon: Icons.school_outlined,
-                tone: KpServiceTone.gold,
-                onTap: () => _soon(context, 'School fees'),
-              ),
-            ),
-            Expanded(
-              child: KpServiceTile(
-                label: 'Taxes',
-                icon: Icons.account_balance_outlined,
-                tone: KpServiceTone.neutral,
-                onTap: () => _soon(context, 'Tax payments'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            color: KpColors.surface,
-            borderRadius: BorderRadius.circular(KpRadius.lg),
-            border: Border.all(color: KpColors.line),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        if (!signedIn && billsOn) ...[
+          const SizedBox(height: 10),
+          const KpSectionHeader(title: 'Categories'),
+          const SizedBox(height: 10),
+          Row(
             children: [
-              Row(
-                children: [
-                  Text(
-                    'Autopay',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
+              if (FeatureFlagsScope.enabled(context, AppFeature.airtime))
+                Expanded(
+                  child: KpServiceTile(
+                    label: 'Airtime',
+                    icon: Icons.smartphone_rounded,
+                    onTap: () => _soon(context, 'Airtime top-up'),
                   ),
-                  const Spacer(),
-                  const KpPill(label: '2 active', tone: KpPillTone.green),
-                ],
-              ),
-              const SizedBox(height: 10),
-              _AutopayRow(
-                name: 'Canal+ Premium',
-                detail: 'Every 5th · 18 000 FCFA',
-                icon: Icons.live_tv_rounded,
-                onTap: () => kpOpen(
-                  context,
-                  BillPayScreen(bill: demoBills[2]),
-                  title: 'Canal+',
-                  step: 28,
                 ),
-              ),
-              const SizedBox(height: 6),
-              _AutopayRow(
-                name: 'ENEO prepaid',
-                detail: 'When below 5 000 FCFA',
-                icon: Icons.bolt_rounded,
-                onTap: () => kpOpen(
-                  context,
-                  BillPayScreen(bill: demoBills[0]),
-                  title: 'ENEO',
-                  step: 28,
+              if (FeatureFlagsScope.enabled(context, AppFeature.internet))
+                Expanded(
+                  child: KpServiceTile(
+                    label: 'Internet',
+                    icon: Icons.wifi_rounded,
+                    tone: KpServiceTone.info,
+                    onTap: () => _soon(context, 'Internet bundles'),
+                  ),
                 ),
-              ),
+              if (FeatureFlagsScope.enabled(context, AppFeature.schoolFees))
+                Expanded(
+                  child: KpServiceTile(
+                    label: 'School fees',
+                    icon: Icons.school_outlined,
+                    tone: KpServiceTone.gold,
+                    onTap: () => _soon(context, 'School fees'),
+                  ),
+                ),
+              if (FeatureFlagsScope.enabled(context, AppFeature.taxes))
+                Expanded(
+                  child: KpServiceTile(
+                    label: 'Taxes',
+                    icon: Icons.account_balance_outlined,
+                    tone: KpServiceTone.neutral,
+                    onTap: () => _soon(context, 'Tax payments'),
+                  ),
+                ),
             ],
           ),
-        ),
-        const SizedBox(height: 14),
-        const KpTip(
-          tone: KpTipTone.gold,
-          child: Text(
-            'Zero KumPay fees on ENEO prepaid payments until Sunday. Provider charges may still apply.',
-          ),
-        ),
+          const SizedBox(height: 16),
+          if (_billOn(context, demoBills[0]) || _billOn(context, demoBills[2]))
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: KpColors.surface,
+                borderRadius: BorderRadius.circular(KpRadius.lg),
+                border: Border.all(color: KpColors.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Autopay',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800, fontSize: 12),
+                      ),
+                      const Spacer(),
+                      KpPill(
+                          label: '$autopayCount active',
+                          tone: KpPillTone.green),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (_billOn(context, demoBills[2]))
+                    _AutopayRow(
+                      name: 'Canal+ Premium',
+                      detail: 'Every 5th · 18 000 FCFA',
+                      icon: Icons.live_tv_rounded,
+                      onTap: () => kpOpen(
+                        context,
+                        BillPayScreen(bill: demoBills[2]),
+                        title: 'Canal+',
+                        step: 28,
+                      ),
+                    ),
+                  if (_billOn(context, demoBills[2]) &&
+                      _billOn(context, demoBills[0]))
+                    const SizedBox(height: 6),
+                  if (_billOn(context, demoBills[0]))
+                    _AutopayRow(
+                      name: 'ENEO prepaid',
+                      detail: 'When below 5 000 FCFA',
+                      icon: Icons.bolt_rounded,
+                      onTap: () => kpOpen(
+                        context,
+                        BillPayScreen(bill: demoBills[0]),
+                        title: 'ENEO',
+                        step: 28,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 14),
+          if (_billOn(context, demoBills[0]))
+            const KpTip(
+              tone: KpTipTone.gold,
+              child: Text(
+                'Zero KumPay fees on ENEO prepaid payments until Sunday. Provider charges may still apply.',
+              ),
+            ),
         ],
       ],
     );
@@ -168,6 +193,13 @@ class BillsScreen extends StatelessWidget {
       context: context,
       delegate: _BillerSearchDelegate(context),
     );
+  }
+
+  bool _billOn(BuildContext context, KpBill bill) {
+    if (!FeatureFlagsScope.enabled(context, AppFeature.bills)) return false;
+    final feature = AppFeature.forBillId(bill.id);
+    if (feature == null) return true;
+    return FeatureFlagsScope.enabled(context, feature);
   }
 
   void _soon(BuildContext context, String label) {
@@ -194,6 +226,8 @@ class BillPayScreen extends StatefulWidget {
 class _BillPayScreenState extends State<BillPayScreen> {
   final _reference = TextEditingController();
   final _amount = TextEditingController(text: '12 500');
+  bool _busy = false;
+  String? _error;
 
   @override
   void initState() {
@@ -208,10 +242,83 @@ class _BillPayScreenState extends State<BillPayScreen> {
     super.dispose();
   }
 
+  Future<void> _pay(int amount) async {
+    final signedIn = AuthScope.maybeRead(context)?.sessionToken != null;
+    if (!signedIn) {
+      kpOpen(
+        context,
+        BillSuccessScreen(bill: widget.bill, amount: amount),
+        title: 'Payment successful',
+        step: 28,
+      );
+      return;
+    }
+    final repo = moneyRepo(context);
+    if (repo == null) return;
+    final kyc = AuthScope.maybeRead(context)?.user?.kyc;
+    final enabled = billFeatureEnabled(context, widget.bill.id);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final receipt = await runMoneyMovement(
+        context,
+        kind: TransactionKind.bill,
+        amount: amount.toDouble(),
+        currency: 'XAF',
+        biller: widget.bill.id,
+        action: ({mfaCode, challengeId}) => repo.payBill(
+          biller: widget.bill.id,
+          reference: _reference.text.trim(),
+          amount: amount.toDouble(),
+          kyc: kyc,
+          featureEnabled: enabled,
+          mfaCode: mfaCode,
+          challengeId: challengeId,
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (receipt == null) return;
+      kpOpen(
+        context,
+        BillSuccessScreen(bill: widget.bill, amount: amount),
+        title: 'Payment successful',
+        step: 28,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = error is ApiException
+            ? (error.status == 404
+                ? '${widget.bill.name} is not open for payments yet.'
+                : error.message)
+            : "Couldn't complete that payment.";
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final amount =
         int.tryParse(_amount.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
+    if (!billFeatureEnabled(context, widget.bill.id)) {
+      return KpPage(
+        bottomNav: kpAppNav(context, active: KpTab.pay),
+        header: KpSimpleHeader(
+          title: widget.bill.name,
+          onBack: () => Navigator.of(context).maybePop(),
+        ),
+        children: [
+          KpTip(
+            tone: KpTipTone.info,
+            child: Text('${widget.bill.name} is turned off right now.'),
+          ),
+        ],
+      );
+    }
 
     return KpPage(
       bottomNav: kpAppNav(context, active: KpTab.pay),
@@ -220,14 +327,10 @@ class _BillPayScreenState extends State<BillPayScreen> {
         onBack: () => Navigator.of(context).maybePop(),
       ),
       footer: KpButton(
-        label:
-            'Pay ${amount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]} ')} FCFA',
-        onTap: () => kpOpen(
-          context,
-          BillSuccessScreen(bill: widget.bill, amount: amount),
-          title: 'Payment successful',
-          step: 28,
-        ),
+        label: _busy
+            ? 'Paying…'
+            : 'Pay ${amount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]} ')} FCFA',
+        onTap: _busy ? null : () => _pay(amount),
       ),
       children: [
         Container(
@@ -246,8 +349,11 @@ class _BillPayScreenState extends State<BillPayScreen> {
                   color: KpColors.surface,
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child:
-                    Icon(widget.bill.icon, size: 22, color: KpColors.goldDeep),
+                child: Icon(
+                  widget.bill.icon,
+                  size: 22,
+                  color: KpColors.goldDeep,
+                ),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -265,10 +371,10 @@ class _BillPayScreenState extends State<BillPayScreen> {
                     const SizedBox(height: 1),
                     Text(
                       widget.bill.category,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: KpColors.ink2,
-                            fontSize: 9.5,
-                          ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: KpColors.ink2, fontSize: 9.5),
                     ),
                   ],
                 ),
@@ -299,10 +405,10 @@ class _BillPayScreenState extends State<BillPayScreen> {
                   controller: _amount,
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setState(() {}),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontSize: 25,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontSize: 25, fontWeight: FontWeight.w800),
                   decoration: const InputDecoration(
                     filled: false,
                     border: InputBorder.none,
@@ -332,8 +438,10 @@ class _BillPayScreenState extends State<BillPayScreen> {
                 onTap: () => setState(() => _amount.text = value.toString()),
                 borderRadius: BorderRadius.circular(KpRadius.pill),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: KpColors.surface,
                     borderRadius: BorderRadius.circular(KpRadius.pill),
@@ -367,6 +475,10 @@ class _BillPayScreenState extends State<BillPayScreen> {
             'Your payment is confirmed by the provider within seconds. Keep the reference for your records.',
           ),
         ),
+        if (_error != null) ...[
+          const SizedBox(height: 10),
+          KpInlineError(_error!),
+        ],
       ],
     );
   }
@@ -504,16 +616,19 @@ class _AutopayRow extends StatelessWidget {
                   ),
                   Text(
                     detail,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: KpColors.muted,
-                          fontSize: 9,
-                        ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: KpColors.muted, fontSize: 9),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
-                size: 17, color: KpColors.muted),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 17,
+              color: KpColors.muted,
+            ),
           ],
         ),
       ),
@@ -554,7 +669,10 @@ class _BillerSearchDelegate extends SearchDelegate<void> {
 
   Widget _results(BuildContext context) {
     final schools = _schools;
-    if (schools != null && repo != null) {
+    final schoolsOn =
+        FeatureFlagsScope.enabled(context, AppFeature.schoolFees) &&
+            FeatureFlagsScope.enabled(context, AppFeature.bills);
+    if (schools != null && repo != null && schoolsOn) {
       return FutureBuilder<List<FeeInstitution>>(
         future: schools,
         builder: (context, snapshot) {
@@ -565,9 +683,11 @@ class _BillerSearchDelegate extends SearchDelegate<void> {
             );
           }
           final items = (snapshot.data ?? const <FeeInstitution>[])
-              .where((school) =>
-                  school.name.toLowerCase().contains(query.toLowerCase()) ||
-                  school.code.toLowerCase().contains(query.toLowerCase()))
+              .where(
+                (school) =>
+                    school.name.toLowerCase().contains(query.toLowerCase()) ||
+                    school.code.toLowerCase().contains(query.toLowerCase()),
+              )
               .toList();
           return Container(
             color: KpColors.canvas,
@@ -587,7 +707,10 @@ class _BillerSearchDelegate extends SearchDelegate<void> {
                         close(context, null);
                         Navigator.of(host).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => FeePayPage(repository: repo!, institution: school),
+                            builder: (_) => FeePayPage(
+                              repository: repo!,
+                              institution: school,
+                            ),
                           ),
                         );
                       },
@@ -598,11 +721,14 @@ class _BillerSearchDelegate extends SearchDelegate<void> {
         },
       );
     }
-    final matches = demoBills
-        .where((b) =>
-            b.name.toLowerCase().contains(query.toLowerCase()) ||
-            b.category.toLowerCase().contains(query.toLowerCase()))
-        .toList();
+    final matches = demoBills.where((b) {
+      final feature = AppFeature.forBillId(b.id);
+      final enabled = FeatureFlagsScope.enabled(context, AppFeature.bills) &&
+          (feature == null || FeatureFlagsScope.enabled(context, feature));
+      if (!enabled) return false;
+      return b.name.toLowerCase().contains(query.toLowerCase()) ||
+          b.category.toLowerCase().contains(query.toLowerCase());
+    }).toList();
 
     return Container(
       color: KpColors.canvas,
@@ -613,9 +739,10 @@ class _BillerSearchDelegate extends SearchDelegate<void> {
             Center(
               child: Text(
                 'No billers match “$query”.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: KpColors.muted,
-                    ),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: KpColors.muted),
               ),
             )
           else
@@ -679,17 +806,24 @@ class _LiveBillersState extends State<_LiveBillers> {
                   ? null
                   : () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => FeePayPage(repository: repo, institution: school),
+                          builder: (_) =>
+                              FeePayPage(repository: repo, institution: school),
                         ),
                       ),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(KpRadius.md),
                   border: Border.all(color: KpColors.line),
                 ),
-                child: Text(school.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                child: Text(
+                  school.name,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ),

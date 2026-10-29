@@ -1,6 +1,9 @@
 import 'dart:math';
 
 import '../../core/api_client.dart';
+import '../../core/api_exception.dart';
+import '../../features/transactions/account_limits.dart';
+import '../../features/transactions/transaction_authorizer.dart';
 import '../demo.dart';
 
 class MoneyAmount {
@@ -17,7 +20,8 @@ class MoneyAmount {
     );
   }
 
-  String get label => currency == 'USD' ? '\$${amount.toStringAsFixed(2)}' : formatXaf(amount);
+  String get label =>
+      currency == 'USD' ? '\$${amount.toStringAsFixed(2)}' : formatXaf(amount);
 }
 
 class WalletSnapshot {
@@ -43,7 +47,10 @@ class WalletSnapshot {
         if (entry is Map) {
           final number = entry['number']?.toString() ?? '';
           if (number.isNotEmpty) {
-            phones.add((number: number, kind: entry['kind']?.toString() ?? 'primary'));
+            phones.add((
+              number: number,
+              kind: entry['kind']?.toString() ?? 'primary',
+            ));
           }
         }
       }
@@ -89,7 +96,11 @@ class ActivityItem {
 }
 
 class ActivityBook {
-  const ActivityBook({required this.items, required this.moneyInXaf, required this.moneyOutXaf});
+  const ActivityBook({
+    required this.items,
+    required this.moneyInXaf,
+    required this.moneyOutXaf,
+  });
 
   final List<ActivityItem> items;
   final double moneyInXaf;
@@ -102,7 +113,9 @@ class ActivityBook {
         if (raw is List)
           for (final entry in raw)
             if (entry is Map)
-              ActivityItem.fromJson(entry.map((key, value) => MapEntry(key.toString(), value))),
+              ActivityItem.fromJson(
+                entry.map((key, value) => MapEntry(key.toString(), value)),
+              ),
       ],
       moneyInXaf: (json['moneyInXaf'] as num?)?.toDouble() ?? 0,
       moneyOutXaf: (json['moneyOutXaf'] as num?)?.toDouble() ?? 0,
@@ -145,7 +158,10 @@ class FeeInstitution {
   factory FeeInstitution.fromJson(Map<String, dynamic> json) {
     return FeeInstitution(
       code: json['code']?.toString() ?? '',
-      name: json['displayName']?.toString() ?? json['legalName']?.toString() ?? '',
+      name:
+          json['displayName']?.toString() ??
+          json['legalName']?.toString() ??
+          '',
     );
   }
 }
@@ -167,14 +183,20 @@ class FeeOption {
     return FeeOption(
       periodId: json['academicPeriodId']?.toString() ?? '',
       categoryCode: json['feeCategory']?.toString() ?? '',
-      label: '${json['feeCategoryName'] ?? json['feeCategory'] ?? 'Fee'} · ${json['academicPeriod'] ?? ''}'.trim(),
+      label:
+          '${json['feeCategoryName'] ?? json['feeCategory'] ?? 'Fee'} · ${json['academicPeriod'] ?? ''}'
+              .trim(),
       amount: MoneyAmount.fromJson(json['amount']),
     );
   }
 }
 
 class AccountDevice {
-  const AccountDevice({required this.model, required this.platform, required this.lastSeenAt});
+  const AccountDevice({
+    required this.model,
+    required this.platform,
+    required this.lastSeenAt,
+  });
 
   final String model;
   final String platform;
@@ -183,7 +205,9 @@ class AccountDevice {
   factory AccountDevice.fromJson(Map<String, dynamic> json) {
     final model = json['model']?.toString();
     return AccountDevice(
-      model: model == null || model.isEmpty || model == 'null' ? (json['platform']?.toString() ?? 'Device') : model,
+      model: model == null || model.isEmpty || model == 'null'
+          ? (json['platform']?.toString() ?? 'Device')
+          : model,
       platform: json['platform']?.toString() ?? '',
       lastSeenAt: json['lastSeenAt']?.toString(),
     );
@@ -191,17 +215,53 @@ class AccountDevice {
 }
 
 class MoneyRepository {
-  MoneyRepository({required String baseUrl, required this.token}) : _api = ApiClient(baseUrl: baseUrl);
+  MoneyRepository({
+    required String baseUrl,
+    required this.token,
+    ApiClient? api,
+    TransactionAuthorizer? authorizer,
+  }) : _api = api ?? ApiClient(baseUrl: baseUrl),
+       _authorizer = authorizer ?? TransactionAuthorizer(baseUrl: baseUrl);
 
   final String token;
   final ApiClient _api;
+  final TransactionAuthorizer _authorizer;
+
+  /// Confirms the platform still allows this movement, then lets the caller post it.
+  Future<void> _guard({
+    required TransactionKind kind,
+    required double amount,
+    required String currency,
+    String? biller,
+    String? kyc,
+    bool featureEnabled = true,
+    String? mfaCode,
+    String? challengeId,
+  }) async {
+    final decision = await _authorizer.authorize(
+      token: token,
+      kyc: kyc,
+      featureEnabled: featureEnabled,
+      kind: kind,
+      amount: amount,
+      currency: currency,
+      biller: biller,
+      mfaCode: mfaCode,
+      challengeId: challengeId,
+    );
+    if (!decision.allowed) throw TransactionBlocked(decision);
+  }
 
   Future<WalletSnapshot> wallet() {
-    return _api.get('/api/me/wallet', token: token).then(WalletSnapshot.fromJson);
+    return _api
+        .get('/api/me/wallet', token: token)
+        .then(WalletSnapshot.fromJson);
   }
 
   Future<ActivityBook> activity() {
-    return _api.get('/api/me/activity', token: token).then(ActivityBook.fromJson);
+    return _api
+        .get('/api/me/activity', token: token)
+        .then(ActivityBook.fromJson);
   }
 
   Future<TransferResult> transfer({
@@ -209,26 +269,87 @@ class MoneyRepository {
     required double amount,
     required String currency,
     String? note,
-  }) {
-    return _api
-        .post(
-          '/api/me/transfers',
-          token: token,
-          body: {
-            'phone': phone,
-            'amount': amount,
-            'currency': currency,
-            if (note != null && note.isNotEmpty) 'note': note,
-          },
-        )
-        .then(TransferResult.fromJson);
+    String? kyc,
+    bool featureEnabled = true,
+    String? mfaCode,
+    String? challengeId,
+  }) async {
+    await _guard(
+      kind: TransactionKind.send,
+      amount: amount,
+      currency: currency,
+      kyc: kyc,
+      featureEnabled: featureEnabled,
+      mfaCode: mfaCode,
+      challengeId: challengeId,
+    );
+    final json = await _api.post(
+      '/api/me/transfers',
+      token: token,
+      body: {
+        'phone': phone,
+        'amount': amount,
+        'currency': currency,
+        if (note != null && note.isNotEmpty) 'note': note,
+      },
+    );
+    return TransferResult.fromJson(json);
   }
 
-  Future<void> cash({required double amount, required String currency, required bool withdraw}) {
-    return _api.post(
+  Future<void> cash({
+    required double amount,
+    required String currency,
+    required bool withdraw,
+    String? kyc,
+    bool featureEnabled = true,
+    String? mfaCode,
+    String? challengeId,
+  }) async {
+    await _guard(
+      kind: withdraw ? TransactionKind.withdrawal : TransactionKind.deposit,
+      amount: amount,
+      currency: currency,
+      kyc: kyc,
+      featureEnabled: featureEnabled,
+      mfaCode: mfaCode,
+      challengeId: challengeId,
+    );
+    await _api.post(
       '/api/me/cash',
       token: token,
-      body: {'amount': amount, 'currency': currency, 'action': withdraw ? 'withdraw' : 'deposit'},
+      body: {
+        'amount': amount,
+        'currency': currency,
+        'action': withdraw ? 'withdraw' : 'deposit',
+      },
+    );
+  }
+
+  Future<AccountLimits?> limits() async {
+    try {
+      final json = await _api.get('/api/me/limits', token: token);
+      return AccountLimits.fromJson(json);
+    } on ApiException catch (error) {
+      if (error.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  Future<({bool biometrics, bool mfa})?> security() async {
+    try {
+      final json = await _api.get('/api/me/security', token: token);
+      return (biometrics: json['biometrics'] == true, mfa: json['mfa'] == true);
+    } on ApiException catch (error) {
+      if (error.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  Future<void> updateSecurity({required bool biometrics, required bool mfa}) {
+    return _api.put(
+      '/api/me/security',
+      token: token,
+      body: {'biometrics': biometrics, 'mfa': mfa},
     );
   }
 
@@ -238,7 +359,10 @@ class MoneyRepository {
     if (raw is! List) return const [];
     return [
       for (final entry in raw)
-        if (entry is Map) FeeInstitution.fromJson(entry.map((key, value) => MapEntry(key.toString(), value))),
+        if (entry is Map)
+          FeeInstitution.fromJson(
+            entry.map((key, value) => MapEntry(key.toString(), value)),
+          ),
     ];
   }
 
@@ -248,7 +372,10 @@ class MoneyRepository {
     if (raw is! List) return const [];
     return [
       for (final entry in raw)
-        if (entry is Map) FeeOption.fromJson(entry.map((key, value) => MapEntry(key.toString(), value))),
+        if (entry is Map)
+          FeeOption.fromJson(
+            entry.map((key, value) => MapEntry(key.toString(), value)),
+          ),
     ];
   }
 
@@ -258,8 +385,25 @@ class MoneyRepository {
     required String categoryCode,
     required String studentReference,
     required String studentName,
-  }) {
-    final key = 'fee-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(99999)}';
+    required double amount,
+    String currency = 'XAF',
+    String? kyc,
+    bool featureEnabled = true,
+    String? mfaCode,
+    String? challengeId,
+  }) async {
+    await _guard(
+      kind: TransactionKind.bill,
+      amount: amount,
+      currency: currency,
+      biller: 'school_fees',
+      kyc: kyc,
+      featureEnabled: featureEnabled,
+      mfaCode: mfaCode,
+      challengeId: challengeId,
+    );
+    final key =
+        'fee-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(99999)}';
     return _api.post(
       '/api/fees/payments',
       token: token,
@@ -274,13 +418,51 @@ class MoneyRepository {
     );
   }
 
+  Future<Map<String, dynamic>> payBill({
+    required String biller,
+    required String reference,
+    required double amount,
+    String currency = 'XAF',
+    String? kyc,
+    bool featureEnabled = true,
+    String? mfaCode,
+    String? challengeId,
+  }) async {
+    await _guard(
+      kind: TransactionKind.bill,
+      amount: amount,
+      currency: currency,
+      biller: biller,
+      kyc: kyc,
+      featureEnabled: featureEnabled,
+      mfaCode: mfaCode,
+      challengeId: challengeId,
+    );
+    final key =
+        'bill-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(99999)}';
+    return _api.post(
+      '/api/me/bills',
+      token: token,
+      headers: {'Idempotency-Key': key},
+      body: {
+        'biller': biller,
+        'reference': reference,
+        'amount': amount,
+        'currency': currency,
+      },
+    );
+  }
+
   Future<List<AccountDevice>> devices() async {
     final json = await _api.get('/api/auth/devices', token: token);
     final raw = json['items'];
     if (raw is! List) return const [];
     return [
       for (final entry in raw)
-        if (entry is Map) AccountDevice.fromJson(entry.map((key, value) => MapEntry(key.toString(), value))),
+        if (entry is Map)
+          AccountDevice.fromJson(
+            entry.map((key, value) => MapEntry(key.toString(), value)),
+          ),
     ];
   }
 

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_exception.dart';
+import '../../features/feature_flags/app_feature.dart';
 import '../../features/money/live_money.dart';
+import '../../features/transactions/transaction_authorizer.dart';
+import '../../features/transactions/transaction_gate.dart';
+import '../../state/auth_scope.dart';
+import '../../state/feature_flags_scope.dart';
 import '../../theme/kp_theme.dart';
 import '../../widgets/kp_controls.dart';
 import '../../widgets/kp_app_nav.dart';
@@ -32,49 +37,68 @@ class _TopUpScreenState extends State<TopUpScreen> {
   Widget build(BuildContext context) {
     final usd = widget.usd;
     final withdraw = widget.withdraw;
+    final enabled = FeatureFlagsScope.enabled(
+      context,
+      withdraw ? AppFeature.withdrawal : AppFeature.deposit,
+    );
+    if (!enabled) {
+      return KpPage(
+        bottomNav: kpAppNav(context, active: KpTab.wallet),
+        header: KpSimpleHeader(
+          title: withdraw ? 'Withdraw money' : 'Add money',
+          onBack: () => Navigator.of(context).maybePop(),
+        ),
+        children: [
+          KpTip(
+            tone: KpTipTone.info,
+            child: Text(
+              withdraw
+                  ? 'Withdrawals are turned off right now.'
+                  : 'Top up is turned off right now.',
+            ),
+          ),
+        ],
+      );
+    }
     final methods = withdraw
         ? const [
             (
               'MTN Mobile Money',
               '••• 456 · Instant',
-              Icons.phone_android_rounded
+              Icons.phone_android_rounded,
             ),
             (
               'Afriland First Bank',
               '•••• 3391 · 1 business day',
-              Icons.account_balance_rounded
+              Icons.account_balance_rounded,
             ),
           ]
         : usd
-            ? const [
-                (
-                  'Debit card',
-                  'Visa / Mastercard · Instant',
-                  Icons.credit_card_rounded
-                ),
-                (
-                  'USD bank transfer',
-                  '1–2 business days',
-                  Icons.account_balance_rounded
-                ),
-              ]
-            : const [
-                (
-                  'MTN Mobile Money',
-                  '••• 456 · Instant',
-                  Icons.phone_android_rounded
-                ),
-                (
-                  'Orange Money',
-                  '••• 118 · Instant',
-                  Icons.phone_android_rounded
-                ),
-                (
-                  'Afriland First Bank',
-                  '•••• 3391 · Instant',
-                  Icons.account_balance_rounded
-                ),
-              ];
+        ? const [
+            (
+              'Debit card',
+              'Visa / Mastercard · Instant',
+              Icons.credit_card_rounded,
+            ),
+            (
+              'USD bank transfer',
+              '1–2 business days',
+              Icons.account_balance_rounded,
+            ),
+          ]
+        : const [
+            (
+              'MTN Mobile Money',
+              '••• 456 · Instant',
+              Icons.phone_android_rounded,
+            ),
+            ('Orange Money', '••• 118 · Instant', Icons.phone_android_rounded),
+            (
+              'Afriland First Bank',
+              '•••• 3391 · Instant',
+              Icons.account_balance_rounded,
+            ),
+          ];
 
     final amount =
         int.tryParse(_amount.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
@@ -96,8 +120,8 @@ class _TopUpScreenState extends State<TopUpScreen> {
           withdraw
               ? 'How much do you want to withdraw?'
               : 'How much do you want to add?',
-          style:
-              Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 22),
+          style: Theme.of(context).textTheme.headlineSmall
+              ?.copyWith(fontSize: 22),
         ),
         const SizedBox(height: 14),
         Container(
@@ -119,10 +143,10 @@ class _TopUpScreenState extends State<TopUpScreen> {
               Text(
                 usd ? '\$' : 'FCFA',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: KpColors.muted,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                    ),
+                  color: KpColors.muted,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -130,10 +154,8 @@ class _TopUpScreenState extends State<TopUpScreen> {
                   controller: _amount,
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setState(() {}),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(fontSize: 28, fontWeight: FontWeight.w800),
                   decoration: const InputDecoration(
                     filled: false,
                     border: InputBorder.none,
@@ -158,14 +180,16 @@ class _TopUpScreenState extends State<TopUpScreen> {
                   _amount.text = usd
                       ? value.toString()
                       : value.toString().replaceAllMapped(
-                            RegExp(r'(\d)(?=(\d{3})+$)'),
-                            (m) => '${m[1]} ',
-                          );
+                          RegExp(r'(\d)(?=(\d{3})+$)'),
+                          (m) => '${m[1]} ',
+                        );
                 }),
                 borderRadius: BorderRadius.circular(KpRadius.pill),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: KpColors.surface,
                     borderRadius: BorderRadius.circular(KpRadius.pill),
@@ -174,10 +198,10 @@ class _TopUpScreenState extends State<TopUpScreen> {
                   child: Text(
                     usd ? '\$$value' : '${value ~/ 1000}k',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: KpColors.primary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 10,
-                        ),
+                      color: KpColors.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
               ),
@@ -209,8 +233,11 @@ class _TopUpScreenState extends State<TopUpScreen> {
                       color: KpColors.surface,
                       borderRadius: BorderRadius.circular(11),
                     ),
-                    child:
-                        Icon(methods[i].$3, size: 18, color: KpColors.primary),
+                    child: Icon(
+                      methods[i].$3,
+                      size: 18,
+                      color: KpColors.primary,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -219,21 +246,18 @@ class _TopUpScreenState extends State<TopUpScreen> {
                       children: [
                         Text(
                           methods[i].$1,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: KpColors.ink,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 11,
-                                  ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: KpColors.ink,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                              ),
                         ),
                         const SizedBox(height: 1),
                         Text(
                           methods[i].$2,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: KpColors.muted,
-                                    fontSize: 9,
-                                  ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: KpColors.muted, fontSize: 9),
                         ),
                       ],
                     ),
@@ -281,12 +305,38 @@ class _TopUpScreenState extends State<TopUpScreen> {
 
   Future<void> _confirm(BuildContext context, int amount) async {
     final repo = moneyRepo(context);
+    final currency = widget.usd ? 'USD' : 'XAF';
+    final enabled = FeatureFlagsScope.enabled(
+      context,
+      widget.withdraw ? AppFeature.withdrawal : AppFeature.deposit,
+    );
+    final kyc = AuthScope.maybeRead(context)?.user?.kyc;
     if (repo == null) {
       _showSuccess(context, amount);
       return;
     }
     try {
-      await repo.cash(amount: amount.toDouble(), currency: widget.usd ? 'USD' : 'XAF', withdraw: widget.withdraw);
+      final moved = await runMoneyMovement<bool>(
+        context,
+        kind: widget.withdraw
+            ? TransactionKind.withdrawal
+            : TransactionKind.deposit,
+        amount: amount.toDouble(),
+        currency: currency,
+        action: ({mfaCode, challengeId}) async {
+          await repo.cash(
+            amount: amount.toDouble(),
+            currency: currency,
+            withdraw: widget.withdraw,
+            kyc: kyc,
+            featureEnabled: enabled,
+            mfaCode: mfaCode,
+            challengeId: challengeId,
+          );
+          return true;
+        },
+      );
+      if (moved != true || !context.mounted) return;
     } catch (error) {
       if (!context.mounted) return;
       final message = error is ApiException
@@ -304,7 +354,8 @@ class _TopUpScreenState extends State<TopUpScreen> {
             children: [
               Text(
                 widget.withdraw ? 'Withdrawal not open' : 'Deposit not open',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 10),
               Text(message),
@@ -333,14 +384,14 @@ class _TopUpScreenState extends State<TopUpScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Center(
-                  child: KpStateIcon(type: KpStateIconType.success, size: 64)),
+                child: KpStateIcon(type: KpStateIconType.success, size: 64),
+              ),
               const SizedBox(height: 14),
               Text(
                 widget.withdraw ? 'Withdrawal started' : 'Money added',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
               Text(
@@ -348,10 +399,8 @@ class _TopUpScreenState extends State<TopUpScreen> {
                     ? '${widget.usd ? '\$' : ''}$total ${widget.usd ? '' : 'FCFA'} is on its way.'
                     : '${widget.usd ? '\$' : ''}$total ${widget.usd ? '' : 'FCFA'} will appear in your wallet shortly.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: KpColors.muted,
-                      fontSize: 10.5,
-                    ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: KpColors.muted, fontSize: 10.5),
               ),
               const SizedBox(height: 18),
               KpButton(

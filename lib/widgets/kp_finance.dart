@@ -13,6 +13,8 @@ class KpBalanceCard extends StatefulWidget {
     this.wallet = 'KumPay Wallet',
     this.primaryAction = 'Add money',
     this.secondaryAction = 'Send',
+    this.showPrimary = true,
+    this.showSecondary = true,
     this.onPrimary,
     this.onSecondary,
   });
@@ -23,6 +25,8 @@ class KpBalanceCard extends StatefulWidget {
   final String wallet;
   final String primaryAction;
   final String secondaryAction;
+  final bool showPrimary;
+  final bool showSecondary;
   final VoidCallback? onPrimary;
   final VoidCallback? onSecondary;
 
@@ -69,21 +73,24 @@ class _KpBalanceCardState extends State<KpBalanceCard> {
                   Text(
                     widget.label,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: const Color(0xFFC7D8CE),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                          letterSpacing: 0.2,
-                        ),
+                      color: const Color(0xFFC7D8CE),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 10,
+                      letterSpacing: 0.2,
+                    ),
                   ),
                   const Spacer(),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.11),
                       borderRadius: BorderRadius.circular(KpRadius.pill),
                       border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.12)),
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -95,13 +102,13 @@ class _KpBalanceCardState extends State<KpBalanceCard> {
                         const SizedBox(width: 4),
                         Text(
                           'SECURED',
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: const Color(0xFFE9C66A),
-                                    fontSize: 7.5,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.8,
-                                  ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: const Color(0xFFE9C66A),
+                                fontSize: 7.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8,
+                              ),
                         ),
                       ],
                     ),
@@ -117,13 +124,13 @@ class _KpBalanceCardState extends State<KpBalanceCard> {
                       _hidden ? '••• ••• FCFA' : widget.amount,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                color: const Color(0xFFFDF9EE),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 27,
-                                letterSpacing: -0.8,
-                              ),
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            color: const Color(0xFFFDF9EE),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 27,
+                            letterSpacing: -0.8,
+                          ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -149,7 +156,9 @@ class _KpBalanceCardState extends State<KpBalanceCard> {
                   Flexible(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.09),
                         borderRadius: BorderRadius.circular(6),
@@ -159,10 +168,10 @@ class _KpBalanceCardState extends State<KpBalanceCard> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: const Color(0xFFDCE7E1),
-                              fontSize: 8.5,
-                              letterSpacing: 0.2,
-                            ),
+                          color: const Color(0xFFDCE7E1),
+                          fontSize: 8.5,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                     ),
                   ),
@@ -174,35 +183,40 @@ class _KpBalanceCardState extends State<KpBalanceCard> {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: const Color(0xFFA9BDB3),
-                            fontSize: 8.5,
-                          ),
+                        color: const Color(0xFFA9BDB3),
+                        fontSize: 8.5,
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _BalanceAction(
-                      label: widget.primaryAction,
-                      icon: Icons.add_rounded,
-                      gold: true,
-                      onTap: widget.onPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: _BalanceAction(
-                      label: widget.secondaryAction,
-                      icon: Icons.north_east_rounded,
-                      gold: false,
-                      onTap: widget.onSecondary,
-                    ),
-                  ),
-                ],
-              ),
+              if (widget.showPrimary || widget.showSecondary) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    if (widget.showPrimary)
+                      Expanded(
+                        child: _BalanceAction(
+                          label: widget.primaryAction,
+                          icon: Icons.add_rounded,
+                          gold: true,
+                          onTap: widget.onPrimary,
+                        ),
+                      ),
+                    if (widget.showPrimary && widget.showSecondary)
+                      const SizedBox(width: 9),
+                    if (widget.showSecondary)
+                      Expanded(
+                        child: _BalanceAction(
+                          label: widget.secondaryAction,
+                          icon: Icons.north_east_rounded,
+                          gold: false,
+                          onTap: widget.onSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ],
           ),
         ],
@@ -237,18 +251,19 @@ class _BalanceAction extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon,
-                  size: 14,
-                  color: gold ? KpColors.primaryDark : const Color(0xFFFDF9EE)),
+              Icon(
+                icon,
+                size: 14,
+                color: gold ? KpColors.primaryDark : const Color(0xFFFDF9EE),
+              ),
               const SizedBox(width: 5),
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color:
-                          gold ? KpColors.primaryDark : const Color(0xFFFDF9EE),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 10.5,
-                    ),
+                  color: gold ? KpColors.primaryDark : const Color(0xFFFDF9EE),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 10.5,
+                ),
               ),
             ],
           ),
@@ -310,10 +325,10 @@ class KpKycBanner extends StatelessWidget {
                     Text(
                       verified ? 'KYC verified' : 'Complete your KYC',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: KpColors.ink,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 10.5,
-                          ),
+                        color: KpColors.ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10.5,
+                      ),
                     ),
                     const SizedBox(height: 1),
                     Text(
@@ -322,9 +337,9 @@ class KpKycBanner extends StatelessWidget {
                               ? 'Tier 2 · Daily limit 2,000,000 FCFA'
                               : 'Tier 0 · Upgrade to unlock higher limits'),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: verified ? KpColors.ink2 : KpColors.ink2,
-                            fontSize: 9,
-                          ),
+                        color: verified ? KpColors.ink2 : KpColors.ink2,
+                        fontSize: 9,
+                      ),
                     ),
                   ],
                 ),
@@ -395,18 +410,16 @@ class KpMiniAccountTile extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: KpColors.ink,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                      ),
+                    color: KpColors.ink,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
                 ),
                 const SizedBox(height: 1),
                 Text(
                   subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: KpColors.muted,
-                        fontSize: 9,
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: KpColors.muted, fontSize: 9),
                 ),
               ],
             ),
@@ -414,10 +427,10 @@ class KpMiniAccountTile extends StatelessWidget {
           Text(
             amount,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: KpColors.ink,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 11,
-                ),
+              color: KpColors.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 11,
+            ),
           ),
         ],
       ),
@@ -465,18 +478,16 @@ class KpBillerChip extends StatelessWidget {
                     Text(
                       bill.name,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: KpColors.ink,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11.5,
-                          ),
+                        color: KpColors.ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11.5,
+                      ),
                     ),
                     const SizedBox(height: 1),
                     Text(
                       bill.category,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: KpColors.muted,
-                            fontSize: 9,
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: KpColors.muted, fontSize: 9),
                     ),
                   ],
                 ),
@@ -532,10 +543,10 @@ class KpSegmentedTabs extends StatelessWidget {
                   child: Text(
                     tabs[i],
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: i == index ? KpColors.ink : KpColors.muted,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 9.5,
-                        ),
+                      color: i == index ? KpColors.ink : KpColors.muted,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 9.5,
+                    ),
                   ),
                 ),
               ),

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_exception.dart';
+import '../../features/feature_flags/app_feature.dart';
 import '../../features/money/live_money.dart';
+import '../../features/transactions/transaction_authorizer.dart';
+import '../../features/transactions/transaction_gate.dart';
 import '../../preview/preview_page.dart';
+import '../../state/auth_scope.dart';
+import '../../state/feature_flags_scope.dart';
 import '../../theme/kp_theme.dart';
 import '../../widgets/kp_controls.dart';
 import '../../widgets/kp_finance.dart';
@@ -37,18 +42,39 @@ class _TransferScreenState extends State<TransferScreen> {
 
   Future<void> _send() async {
     final repo = moneyRepo(context);
-    if (repo == null || _tab != 0) {
-      if (_tab != 0 && repo != null) {
-        setState(() => _error = 'Bank and Mobile Money payouts are not open yet.');
+    if (_tab != 0) {
+      if (repo != null) {
+        setState(
+          () => _error = 'Bank and Mobile Money payouts are not open yet.',
+        );
         return;
       }
       if (!mounted) return;
-      kpOpen(context, const TransferSuccessScreen(), title: 'Transfer complete', step: 26);
+      kpOpen(
+        context,
+        const TransferSuccessScreen(),
+        title: 'Transfer complete',
+        step: 26,
+      );
       return;
     }
-    final amount = double.tryParse(_amount.text.replaceAll(RegExp(r'[^0-9.]'), ''));
+    final amount = double.tryParse(
+      _amount.text.replaceAll(RegExp(r'[^0-9.]'), ''),
+    );
     if (_phone.text.trim().length < 6 || amount == null || amount <= 0) {
       setState(() => _error = 'Enter a KumPay number and an amount.');
+      return;
+    }
+    final enabled = FeatureFlagsScope.enabled(context, AppFeature.send);
+    final kyc = AuthScope.maybeRead(context)?.user?.kyc;
+    if (repo == null) {
+      if (!mounted) return;
+      kpOpen(
+        context,
+        const TransferSuccessScreen(),
+        title: 'Transfer complete',
+        step: 26,
+      );
       return;
     }
     setState(() {
@@ -56,14 +82,25 @@ class _TransferScreenState extends State<TransferScreen> {
       _error = null;
     });
     try {
-      final result = await repo.transfer(
-        phone: _phone.text.trim(),
+      final result = await runMoneyMovement(
+        context,
+        kind: TransactionKind.send,
         amount: amount,
         currency: 'XAF',
-        note: _note.text.trim(),
+        action: ({mfaCode, challengeId}) => repo.transfer(
+          phone: _phone.text.trim(),
+          amount: amount,
+          currency: 'XAF',
+          note: _note.text.trim(),
+          kyc: kyc,
+          featureEnabled: enabled,
+          mfaCode: mfaCode,
+          challengeId: challengeId,
+        ),
       );
       if (!mounted) return;
       setState(() => _busy = false);
+      if (result == null) return;
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => TransferSuccessScreen(
@@ -79,13 +116,30 @@ class _TransferScreenState extends State<TransferScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = error is ApiException ? error.message : "Couldn't send that transfer.";
+        _error = error is ApiException
+            ? error.message
+            : "Couldn't send that transfer.";
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!FeatureFlagsScope.enabled(context, AppFeature.send)) {
+      return KpPage(
+        bottomNav: kpAppNav(context, active: KpTab.send),
+        header: KpSimpleHeader(
+          title: 'Send money',
+          onBack: () => Navigator.of(context).maybePop(),
+        ),
+        children: const [
+          KpTip(
+            tone: KpTipTone.info,
+            child: Text('Sending money is turned off right now.'),
+          ),
+        ],
+      );
+    }
     return KpPage(
       bottomNav: kpAppNav(context, active: KpTab.send),
       header: KpSimpleHeader(
@@ -115,10 +169,10 @@ class _TransferScreenState extends State<TransferScreen> {
         Text(
           'Recent',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: KpColors.muted,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-              ),
+            color: KpColors.muted,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -128,16 +182,28 @@ class _TransferScreenState extends State<TransferScreen> {
             physics: const BouncingScrollPhysics(),
             children: const [
               _RecentRecipient(
-                  initials: 'CF', name: 'Clarisse', tone: KpColors.softGreen),
+                initials: 'CF',
+                name: 'Clarisse',
+                tone: KpColors.softGreen,
+              ),
               SizedBox(width: 8),
               _RecentRecipient(
-                  initials: 'PM', name: 'Paul M.', tone: KpColors.goldSoft),
+                initials: 'PM',
+                name: 'Paul M.',
+                tone: KpColors.goldSoft,
+              ),
               SizedBox(width: 8),
               _RecentRecipient(
-                  initials: 'AN', name: 'Ariane', tone: KpColors.infoSoft),
+                initials: 'AN',
+                name: 'Ariane',
+                tone: KpColors.infoSoft,
+              ),
               SizedBox(width: 8),
               _RecentRecipient(
-                  initials: 'JD', name: 'Jean D.', tone: KpColors.soft),
+                initials: 'JD',
+                name: 'Jean D.',
+                tone: KpColors.soft,
+              ),
             ],
           ),
         ),
@@ -145,10 +211,10 @@ class _TransferScreenState extends State<TransferScreen> {
         Text(
           'Amount',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: KpColors.muted,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-              ),
+            color: KpColors.muted,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: 8),
         Container(
@@ -165,10 +231,8 @@ class _TransferScreenState extends State<TransferScreen> {
                   controller: _amount,
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setState(() {}),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontSize: 25,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(fontSize: 25, fontWeight: FontWeight.w800),
                   decoration: const InputDecoration(
                     filled: false,
                     border: InputBorder.none,
@@ -193,15 +257,16 @@ class _TransferScreenState extends State<TransferScreen> {
         const SizedBox(height: 6),
         Row(
           children: [
-            const Icon(Icons.account_balance_wallet_outlined,
-                size: 13, color: KpColors.muted),
+            const Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 13,
+              color: KpColors.muted,
+            ),
             const SizedBox(width: 4),
             Text(
               'Balance: 248 500 FCFA',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: KpColors.muted,
-                    fontSize: 9,
-                  ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: KpColors.muted, fontSize: 9),
             ),
             const Spacer(),
             KpTextLink(
@@ -224,11 +289,7 @@ class _TransferScreenState extends State<TransferScreen> {
           rows: [
             KpDetailRow('Transfer amount', '${_amount.text} FCFA'),
             const KpDetailRow('Transfer fee', 'Free'),
-            KpDetailRow(
-              'Recipient gets',
-              '${_amount.text} FCFA',
-              total: true,
-            ),
+            KpDetailRow('Recipient gets', '${_amount.text} FCFA', total: true),
           ],
         ),
         const SizedBox(height: 12),
@@ -364,10 +425,7 @@ class _RecentRecipient extends StatelessWidget {
             width: 38,
             height: 38,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tone,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
             child: Text(
               initials,
               style: const TextStyle(
@@ -382,10 +440,8 @@ class _RecentRecipient extends StatelessWidget {
             name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: KpColors.ink2,
-                  fontSize: 8.5,
-                ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: KpColors.ink2, fontSize: 8.5),
           ),
         ],
       ),

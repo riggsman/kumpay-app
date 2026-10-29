@@ -82,14 +82,29 @@ final _screens = <String, Widget Function()>{
 const _testFontFamily = 'KpTestSans';
 
 Future<void> _loadRealisticFonts() async {
+  final regular = _fontFile([
+    r'C:\Windows\Fonts\verdana.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf',
+  ]);
+  final bold = _fontFile([
+    r'C:\Windows\Fonts\verdanab.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',
+  ]);
+  if (regular == null || bold == null) return;
   final loader = FontLoader(_testFontFamily)
-    ..addFont(Future.value(ByteData.view(
-      File(r'C:\Windows\Fonts\verdana.ttf').readAsBytesSync().buffer,
-    )))
-    ..addFont(Future.value(ByteData.view(
-      File(r'C:\Windows\Fonts\verdanab.ttf').readAsBytesSync().buffer,
-    )));
+    ..addFont(Future.value(ByteData.view(regular.readAsBytesSync().buffer)))
+    ..addFont(Future.value(ByteData.view(bold.readAsBytesSync().buffer)));
   await loader.load();
+}
+
+File? _fontFile(List<String> paths) {
+  for (final path in paths) {
+    final file = File(path);
+    if (file.existsSync()) return file;
+  }
+  return null;
 }
 
 ThemeData _testTheme() {
@@ -114,11 +129,7 @@ void main() {
           theme: _testTheme(),
           home: Material(
             color: KpColors.canvas,
-            child: SizedBox(
-              width: 390,
-              height: 844,
-              child: entry.value(),
-            ),
+            child: SizedBox(width: 390, height: 844, child: entry.value()),
           ),
         ),
       );

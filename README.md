@@ -84,6 +84,16 @@ Keep every rule server-side: OTP delivery order, 6-month phone cooldown, KYC
 decisions, card limits, refund four-eyes and role permissions must never be
 decided in this client.
 
+## Platform feature flags
+
+Send, top up, withdrawal, billers (school fees, ENEO, CAMWATER, Canal+, DStv
+and the rest), biometrics and the extra sign-in check are hidden the moment
+the platform turns them off, and shown again when it turns them on. Every
+money movement is also checked for verification, limits and permission before
+it is submitted.
+
+The methods the backend has to expose are written in [FEATURE_FLAGS.md](FEATURE_FLAGS.md).
+
 ## Notes
 
 - `google_fonts` fetches Manrope/Bricolage at runtime. For offline builds, add
