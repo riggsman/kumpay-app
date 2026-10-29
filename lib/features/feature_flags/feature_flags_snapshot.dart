@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../services/platform_service.dart';
 import 'app_feature.dart';
 
 /// One consistent view of every platform feature flag.
@@ -8,6 +9,7 @@ class FeatureFlagsSnapshot {
     required this.flags,
     required this.version,
     this.updatedAt,
+    this.services = const [],
   });
 
   final Map<String, bool> flags;
@@ -15,6 +17,9 @@ class FeatureFlagsSnapshot {
   /// Monotonic revision. A slower response with a smaller version is ignored.
   final int version;
   final DateTime? updatedAt;
+
+  /// Services the platform has published. Empty until the snapshot includes them.
+  final List<PlatformService> services;
 
   factory FeatureFlagsSnapshot.defaults() {
     return FeatureFlagsSnapshot(
@@ -41,6 +46,7 @@ class FeatureFlagsSnapshot {
       flags: flags,
       version: (json['version'] as num?)?.toInt() ?? 0,
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+      services: PlatformService.listFrom(json['services']),
     );
   }
 
@@ -51,14 +57,24 @@ class FeatureFlagsSnapshot {
   bool operator ==(Object other) {
     return other is FeatureFlagsSnapshot &&
         other.version == version &&
-        mapEquals(other.flags, flags);
+        mapEquals(other.flags, flags) &&
+        _sameServices(other.services, services);
   }
 
   @override
   int get hashCode => Object.hash(
-    version,
-    Object.hashAll(
-      flags.entries.map((entry) => Object.hash(entry.key, entry.value)),
-    ),
-  );
+        version,
+        Object.hashAll(
+          flags.entries.map((entry) => Object.hash(entry.key, entry.value)),
+        ),
+        Object.hashAll(services),
+      );
+}
+
+bool _sameServices(List<PlatformService> left, List<PlatformService> right) {
+  if (left.length != right.length) return false;
+  for (var i = 0; i < left.length; i++) {
+    if (left[i] != right[i]) return false;
+  }
+  return true;
 }

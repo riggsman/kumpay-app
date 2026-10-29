@@ -201,6 +201,77 @@ void main() {
 
     expect(result.reference, 'KP-1');
     expect(httpClient.calls, 1);
+    expect(httpClient.paths, ['/api/me/limits', '/api/me/transfers']);
+  });
+
+  test('a quarterly cap read at pay time stops the transfer', () async {
+    final httpClient = _OkClient(
+      limits: {
+        'currency': 'XAF',
+        'quarterly': {'limit': 100000, 'used': 99000, 'remaining': 1000},
+      },
+    );
+    final recording = _RecordingApi();
+    final repository = MoneyRepository(
+      baseUrl: 'http://example.test',
+      token: 'session',
+      api: ApiClient(baseUrl: 'http://example.test', client: httpClient),
+      authorizer: TransactionAuthorizer(api: recording),
+    );
+
+    await expectLater(
+      repository.transfer(
+        phone: '+237677000000',
+        amount: 5000,
+        currency: 'XAF',
+        kyc: 'approved',
+      ),
+      throwsA(
+        isA<TransactionBlocked>().having(
+          (error) => error.decision.message,
+          'message',
+          contains('quarterly'),
+        ),
+      ),
+    );
+    expect(recording.calls, 0);
+    expect(httpClient.calls, 0);
+    expect(httpClient.paths, ['/api/me/limits']);
+  });
+
+  test('a service payment is the standard debit, not a provider call',
+      () async {
+    final httpClient = _OkClient(
+      pay: {
+        'status': 'debited',
+        'providerRequested': false,
+        'reference': 'KP-SVC-1',
+        'message': 'Paid from your KumPay balance.',
+      },
+    );
+    final repository = MoneyRepository(
+      baseUrl: 'http://example.test',
+      token: 'session',
+      api: ApiClient(baseUrl: 'http://example.test', client: httpClient),
+      authorizer: TransactionAuthorizer(api: _RecordingApi()),
+    );
+
+    final result = await repository.payService(
+      serviceId: 'council',
+      amount: 5000,
+      currency: 'XAF',
+      fields: {'amount': '5000', 'type': 'Market'},
+      kyc: 'approved',
+    );
+
+    expect(result.status, 'debited');
+    expect(result.providerRequested, isFalse);
+    expect(result.reference, 'KP-SVC-1');
+    expect(httpClient.payBody?['serviceId'], 'council');
+    expect(httpClient.payBody?['amount'], 5000);
+    expect(httpClient.payBody?['fields'], {'amount': '5000', 'type': 'Market'});
+    expect(httpClient.calls, 1);
+    expect(httpClient.paths.last, '/api/me/services/council/pay');
   });
 }
 
@@ -208,7 +279,7 @@ class _RecordingApi implements TransactionCheckApi {
   _RecordingApi({this.onCall});
 
   final Future<Map<String, dynamic>> Function(Map<String, dynamic> body)?
-  onCall;
+      onCall;
   final bodies = <Map<String, dynamic>>[];
   int calls = 0;
 
@@ -227,27 +298,54 @@ class _RecordingApi implements TransactionCheckApi {
 
 class _BoomClient extends http.BaseClient {
   int calls = 0;
+  final paths = <String>[];
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {
+    paths.add(request.url.path);
+    if (request.url.path.endsWith('/limits')) {
+      return Future.value(
+        _json(404, '{"error":{"code":"NOT_FOUND","message":"missing"}}'),
+      );
+    }
     calls++;
     throw StateError('money endpoint was called');
   }
 }
 
 class _OkClient extends http.BaseClient {
+  _OkClient({this.limits = const {}, this.pay});
+
+  final Map<String, dynamic> limits;
+  final Map<String, dynamic>? pay;
+  final paths = <String>[];
+  Map<String, dynamic>? payBody;
+
+  /// Posts that move money. A limits read is not counted.
   int calls = 0;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    paths.add(request.url.path);
+    if (request.url.path.endsWith('/limits')) {
+      return _json(200, jsonEncode(limits));
+    }
     calls++;
-    return http.StreamedResponse(
-      Stream<List<int>>.value(
-        utf8.encode(
-          '{"reference":"KP-1","recipientName":"Aïcha","phone":"+237677000000","amount":{"amount":1000,"currency":"XAF"}}',
-        ),
-      ),
+    if (request.url.path.contains('/services/') && request is http.Request) {
+      payBody = jsonDecode(request.body) as Map<String, dynamic>;
+      return _json(200, jsonEncode(pay));
+    }
+    return _json(
       200,
+      '{"reference":"KP-1","recipientName":"Aïcha","phone":"+237677000000","amount":{"amount":1000,"currency":"XAF"}}',
     );
   }
+}
+
+http.StreamedResponse _json(int status, String body) {
+  return http.StreamedResponse(
+    Stream<List<int>>.value(utf8.encode(body)),
+    status,
+    headers: const {'content-type': 'application/json'},
+  );
 }

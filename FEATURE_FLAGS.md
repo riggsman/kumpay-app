@@ -6,6 +6,8 @@ Before any wallet movement, the app also checks that the person is allowed to do
 
 Until `GET /api/features` answers, every flag below is treated as **on**. A missing key in a later snapshot stays **on**. To hide a service the platform must send that key as `false`.
 
+Services the platform creates later — a name, a logo, and up to three inputs — travel in this same snapshot, so they appear without an app release. Account limits are monthly, quarterly, and annual, and they are applied again on every payment. The field rules, the staff methods, and the wallet-then-provider settlement are in [PLATFORM_SERVICES.md](PLATFORM_SERVICES.md).
+
 ## Feature keys
 
 | Key | What disappears when it is `false` |
@@ -65,11 +67,20 @@ Accept: application/json
     "taxes": false,
     "biometrics": true,
     "mfa": false
-  }
+  },
+  "services": [
+    {
+      "serviceName": "council",
+      "logo": "council.png",
+      "fields": ["amount", "type"]
+    }
+  ]
 }
 ```
 
-`version` is an integer. Start at `1` and add one on every change. `updatedAt` is ISO-8601 UTC. `flags` should include every key in the table. Unknown keys are ignored by this app version and should be stored anyway so a future release can read them.
+`version` is an integer. Start at `1` and add one on every change, including a new or edited service. `updatedAt` is ISO-8601 UTC. `flags` should include every key in the table. Unknown keys are ignored by this app version and should be stored anyway so a future release can read them.
+
+`services` is the catalog from [PLATFORM_SERVICES.md](PLATFORM_SERVICES.md). Omitting the array leaves the catalog empty. A service with no recognized field is not shown.
 
 ## `GET /api/features/stream`
 
@@ -89,6 +100,8 @@ data: {"version":9,"updatedAt":"2026-10-29T09:16:02Z","flags":{"send":false,"dep
 ```
 
 The app reads `data:` lines and ignores comment lines (`:`). If this route returns 404, the app polls instead. Returning 404 is valid until the stream is ready; polling still hides a service within 4 seconds.
+
+Each event is a full snapshot. Include `services` as well as `flags`. Creating, editing, or disabling a service bumps `version` and pushes one event, the same way a flag change does.
 
 ## Staff writes
 
@@ -172,7 +185,7 @@ Content-Type: application/json
 }
 ```
 
-`kind` is `send`, `deposit`, `withdrawal`, or `bill`. `biller` is present for bills (`school_fees`, `eneo`, `camwater`, `canal` or `canal_plus`, `dstv`, `airtime`, `internet`, `taxes`). `mfaCode` and `challengeId` are present only on the retry after `MFA_REQUIRED`.
+`kind` is `send`, `deposit`, `withdrawal`, or `bill`. `biller` is present for bills (`school_fees`, `eneo`, `camwater`, `canal` or `canal_plus`, `dstv`, `airtime`, `internet`, `taxes`, or a platform service id such as `council`). The same value is also sent as `serviceId`. `mfaCode` and `challengeId` are present only on the retry after `MFA_REQUIRED`.
 
 `amount` is a major-unit number, the same shape as the wallet API (`15000` means 15 000 XAF, not centimes).
 
@@ -187,10 +200,10 @@ Content-Type: application/json
   "limits": {
     "currency": "XAF",
     "tier": "Tier 2",
-    "dailyLimit": 2000000,
-    "dailyUsed": 150000,
-    "remaining": 1850000,
-    "perTransaction": 500000
+    "perTransaction": 500000,
+    "monthly": { "limit": 2000000, "used": 150000, "remaining": 1850000 },
+    "quarterly": { "limit": 5000000, "used": 900000, "remaining": 4100000 },
+    "annual": { "limit": 15000000, "used": 2400000, "remaining": 12600000 }
   }
 }
 ```
@@ -206,10 +219,10 @@ Either an HTTP 200 body with `"allowed": false`, or an HTTP 4xx error envelope. 
   "message": "This is above your remaining limit of 20 000 FCFA.",
   "limits": {
     "currency": "XAF",
-    "dailyLimit": 50000,
-    "dailyUsed": 48000,
-    "remaining": 2000,
-    "perTransaction": 50000
+    "perTransaction": 50000,
+    "monthly": { "limit": 50000, "used": 48000, "remaining": 2000 },
+    "quarterly": { "limit": 150000, "used": 48000, "remaining": 102000 },
+    "annual": { "limit": 600000, "used": 48000, "remaining": 552000 }
   }
 }
 ```
@@ -218,7 +231,7 @@ Either an HTTP 200 body with `"allowed": false`, or an HTTP 4xx error envelope. 
 | --- | --- | --- |
 | `OK` | The movement may proceed | Calls the money endpoint |
 | `KYC_REQUIRED` | `kyc` is not `approved` | Stops and offers identity verification. The app also stops locally, before this call, when it already knows the account is unverified |
-| `LIMIT_REACHED` | Amount is over `perTransaction` or the remaining daily / monthly cap | Stops and shows the message |
+| `LIMIT_REACHED` | Amount is over `perTransaction` or the remaining monthly, quarterly, or annual cap | Stops and shows the message |
 | `FEATURE_DISABLED` | The feature key for this kind or biller is off | Stops. The service should already be hidden; this covers a tap that raced the flag |
 | `NOT_ALLOWED` | Any other policy refusal (suspended product, blocked corridor, staff hold) | Stops and shows the message |
 | `ACCOUNT_RESTRICTED` | The account cannot move money | Stops |
@@ -238,20 +251,24 @@ Production should implement this method. 404 is only a bridge so wallets keep wo
 
 ## Limits — `GET /api/me/limits`
 
-Authenticated. Used to fill the daily-limit figure on Profile. Same `limits` object as in the authorize response, at the top level. `404` hides the figure (`—`) and the profile row opens KYC instead.
+Authenticated. The phone calls this when Profile opens, again when the app returns to the foreground, and again immediately before every send, deposit, withdrawal, and bill. The same object is nested under `limits` in the authorize response. `404` leaves the Profile figure as `—`.
+
+The caps that govern a payment are `perTransaction`, then `monthly`, `quarterly`, and `annual`. Each period object carries `limit`, `used`, and `remaining` in major units. Send all three periods for every account. The phone blocks when the amount is above `perTransaction` or above any period's `remaining`.
 
 ```json
 {
   "currency": "XAF",
   "tier": "Tier 2",
-  "dailyLimit": 2000000,
-  "dailyUsed": 150000,
-  "remaining": 1850000,
-  "perTransaction": 500000
+  "perTransaction": 500000,
+  "monthly": { "limit": 2000000, "used": 150000, "remaining": 1850000 },
+  "quarterly": { "limit": 5000000, "used": 900000, "remaining": 4100000 },
+  "annual": { "limit": 15000000, "used": 2400000, "remaining": 12600000 }
 }
 ```
 
-Compare amounts on the server as well. The phone check is only an early stop.
+Older payloads that only send `dailyLimit`, `dailyUsed`, and `remaining` are still honored when the three period objects are absent. New deployments should send the periods and can omit the daily fields.
+
+Compare the same periods on the server. The phone check is only an early stop, and a change to these numbers applies to the next payment without an app update. The full settlement rules are in [PLATFORM_SERVICES.md](PLATFORM_SERVICES.md).
 
 ## Security preferences — biometrics and MFA
 
@@ -284,7 +301,8 @@ The app calls authorize, and only then:
 | Send to a KumPay wallet | `POST /api/me/transfers` | `{ "phone", "amount", "currency", "note?" }` |
 | Deposit or withdrawal | `POST /api/me/cash` | `{ "amount", "currency", "action": "deposit" \| "withdraw" }` |
 | School fees | `POST /api/fees/payments` | Existing fee body, plus header `Idempotency-Key` |
-| ENEO, CAMWATER, Canal+, DStv, and the other billers | `POST /api/me/bills` | `{ "biller", "reference", "amount", "currency" }` plus header `Idempotency-Key` |
+| ENEO, CAMWATER, Canal+, DStv, and the other built-in billers | `POST /api/me/bills` | `{ "biller", "reference", "amount", "currency" }` plus header `Idempotency-Key` |
+| A service created by the platform | `POST /api/me/services/{id}/pay` | `{ "serviceId", "amount", "currency", "fields" }` plus header `Idempotency-Key`. The wallet is debited in full when the balance covers the amount. The provider is contacted only when it does not. See [PLATFORM_SERVICES.md](PLATFORM_SERVICES.md) |
 
 `POST /api/me/bills` is new. Until it exists, a signed-in payment to ENEO, CAMWATER, Canal+, or DStv is refused on the phone with “not open for payments yet” instead of a fake receipt. Turning the flag on shows the biller; the payment succeeds only after this method exists and authorize allows it.
 

@@ -59,8 +59,7 @@ void main() {
   });
 
   test('server-sent events are applied as they arrive', () {
-    const chunk =
-        'event: features\n'
+    const chunk = 'event: features\n'
         'data: {"version":2,"flags":{"send":false,"bills":false}}\n'
         '\n'
         ': ping\n'

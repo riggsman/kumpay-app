@@ -124,5 +124,9 @@ bool mapEqualsFlags(FeatureFlagsSnapshot left, FeatureFlagsSnapshot right) {
   for (final entry in left.flags.entries) {
     if (right.flags[entry.key] != entry.value) return false;
   }
+  if (left.services.length != right.services.length) return false;
+  for (var i = 0; i < left.services.length; i++) {
+    if (left.services[i] != right.services[i]) return false;
+  }
   return true;
 }

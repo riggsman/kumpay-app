@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../../core/api_client.dart';
 import '../../core/api_exception.dart';
+import '../../features/services/platform_service.dart';
 import '../../features/transactions/account_limits.dart';
 import '../../features/transactions/transaction_authorizer.dart';
 import '../demo.dart';
@@ -158,8 +159,7 @@ class FeeInstitution {
   factory FeeInstitution.fromJson(Map<String, dynamic> json) {
     return FeeInstitution(
       code: json['code']?.toString() ?? '',
-      name:
-          json['displayName']?.toString() ??
+      name: json['displayName']?.toString() ??
           json['legalName']?.toString() ??
           '',
     );
@@ -220,8 +220,8 @@ class MoneyRepository {
     required this.token,
     ApiClient? api,
     TransactionAuthorizer? authorizer,
-  }) : _api = api ?? ApiClient(baseUrl: baseUrl),
-       _authorizer = authorizer ?? TransactionAuthorizer(baseUrl: baseUrl);
+  })  : _api = api ?? ApiClient(baseUrl: baseUrl),
+        _authorizer = authorizer ?? TransactionAuthorizer(baseUrl: baseUrl);
 
   final String token;
   final ApiClient _api;
@@ -237,7 +237,16 @@ class MoneyRepository {
     bool featureEnabled = true,
     String? mfaCode,
     String? challengeId,
+    AccountLimits? knownLimits,
   }) async {
+    var limits = knownLimits;
+    if (limits == null) {
+      try {
+        limits = await this.limits();
+      } catch (_) {
+        limits = null;
+      }
+    }
     final decision = await _authorizer.authorize(
       token: token,
       kyc: kyc,
@@ -248,6 +257,7 @@ class MoneyRepository {
       biller: biller,
       mfaCode: mfaCode,
       challengeId: challengeId,
+      knownLimits: limits,
     );
     if (!decision.allowed) throw TransactionBlocked(decision);
   }
@@ -351,6 +361,42 @@ class MoneyRepository {
       token: token,
       body: {'biometrics': biometrics, 'mfa': mfa},
     );
+  }
+
+  Future<ServicePayment> payService({
+    required String serviceId,
+    required double amount,
+    required Map<String, String> fields,
+    String currency = 'XAF',
+    String? kyc,
+    bool featureEnabled = true,
+    String? mfaCode,
+    String? challengeId,
+  }) async {
+    await _guard(
+      kind: TransactionKind.bill,
+      amount: amount,
+      currency: currency,
+      biller: serviceId,
+      kyc: kyc,
+      featureEnabled: featureEnabled,
+      mfaCode: mfaCode,
+      challengeId: challengeId,
+    );
+    final key =
+        'svc-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(99999)}';
+    final json = await _api.post(
+      '/api/me/services/${Uri.encodeComponent(serviceId)}/pay',
+      token: token,
+      headers: {'Idempotency-Key': key},
+      body: {
+        'serviceId': serviceId,
+        'amount': amount,
+        'currency': currency,
+        'fields': fields,
+      },
+    );
+    return ServicePayment.fromJson(json);
   }
 
   Future<List<FeeInstitution>> institutions() async {

@@ -50,8 +50,7 @@ class TransactionDecision {
     final allowed = json['allowed'] == true;
     return TransactionDecision(
       allowed: allowed,
-      code:
-          json['code']?.toString() ??
+      code: json['code']?.toString() ??
           (allowed ? TransactionCodes.ok : TransactionCodes.notAllowed),
       message: json['message']?.toString() ?? '',
       limits: AccountLimits.tryParse(json['limits']),
@@ -80,7 +79,7 @@ abstract class TransactionCheckApi {
 
 class HttpTransactionCheckApi implements TransactionCheckApi {
   HttpTransactionCheckApi({required String baseUrl, ApiClient? api})
-    : _api = api ?? ApiClient(baseUrl: baseUrl);
+      : _api = api ?? ApiClient(baseUrl: baseUrl);
 
   final ApiClient _api;
 
@@ -99,7 +98,7 @@ class HttpTransactionCheckApi implements TransactionCheckApi {
 
 class TransactionAuthorizer {
   TransactionAuthorizer({TransactionCheckApi? api, String baseUrl = ''})
-    : _api = api ?? HttpTransactionCheckApi(baseUrl: baseUrl);
+      : _api = api ?? HttpTransactionCheckApi(baseUrl: baseUrl);
 
   final TransactionCheckApi _api;
 
@@ -181,6 +180,7 @@ class TransactionAuthorizer {
           'amount': amount,
           'currency': currency,
           if (biller != null && biller.isNotEmpty) 'biller': biller,
+          if (biller != null && biller.isNotEmpty) 'serviceId': biller,
           if (mfaCode != null && mfaCode.isNotEmpty) 'mfaCode': mfaCode,
           if (challengeId != null && challengeId.isNotEmpty)
             'challengeId': challengeId,
@@ -207,7 +207,8 @@ class TransactionAuthorizer {
       return const TransactionDecision(
         allowed: false,
         code: TransactionCodes.network,
-        message: "Couldn't confirm this payment. Check your connection and try again.",
+        message:
+            "Couldn't confirm this payment. Check your connection and try again.",
       );
     }
   }

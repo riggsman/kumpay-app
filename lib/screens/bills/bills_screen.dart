@@ -5,6 +5,8 @@ import '../../data/demo.dart';
 import '../../data/money/money_repository.dart';
 import '../../features/feature_flags/app_feature.dart';
 import '../../features/fees/fee_pay_page.dart';
+import '../../features/services/platform_service.dart';
+import '../../features/services/service_pay_page.dart';
 import '../../features/money/live_money.dart';
 import '../../features/transactions/transaction_authorizer.dart';
 import '../../features/transactions/transaction_gate.dart';
@@ -32,6 +34,10 @@ class BillsScreen extends StatelessWidget {
         demoBills.where((bill) => _billOn(context, bill)).toList();
     final autopayCount = (_billOn(context, demoBills[0]) ? 1 : 0) +
         (_billOn(context, demoBills[2]) ? 1 : 0);
+    final platformServices = billsOn
+        ? (FeatureFlagsScope.maybeOf(context)?.snapshot.services ??
+            const <PlatformService>[])
+        : const <PlatformService>[];
     return KpPage(
       bottomNav: kpAppNav(context, active: KpTab.pay),
       header: KpSimpleHeader(
@@ -55,6 +61,15 @@ class BillsScreen extends StatelessWidget {
             tone: KpTipTone.info,
             child: Text('Bill payments are turned off right now.'),
           ),
+        if (platformServices.isNotEmpty) ...[
+          const KpSectionHeader(title: 'Services'),
+          const SizedBox(height: 8),
+          for (final service in platformServices) ...[
+            _PlatformServiceTile(service: service),
+            const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 8),
+        ],
         if (billsOn && signedIn && schoolsOn) const _LiveBillers(),
         if (billsOn)
           for (final bill in visibleBills) ...[
@@ -830,6 +845,52 @@ class _LiveBillersState extends State<_LiveBillers> {
           const SizedBox(height: 8),
         ],
       ],
+    );
+  }
+}
+
+class _PlatformServiceTile extends StatelessWidget {
+  const _PlatformServiceTile({required this.service});
+
+  final PlatformService service;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: KpColors.surface,
+      borderRadius: BorderRadius.circular(KpRadius.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(KpRadius.md),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ServicePayPage(service: service),
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(KpRadius.md),
+            border: Border.all(color: KpColors.line),
+          ),
+          child: Row(
+            children: [
+              ServiceLogo(service: service, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  service.name,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: KpColors.muted,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

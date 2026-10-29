@@ -43,7 +43,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with WidgetsBindingObserver {
   bool _biometrics = true;
   bool _mfa = false;
   bool _pushNotifications = true;
@@ -56,36 +57,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     languageChoice.addListener(_onLanguage);
+    WidgetsBinding.instance.addObserver(this);
     final repo = moneyRepo(context);
     if (repo == null) return;
-    repo
-        .wallet()
-        .then((wallet) {
-          if (!mounted) return;
-          setState(() {
-            _niu = wallet.niu;
-            _niuLoaded = true;
-            _phoneCount = wallet.phones.length;
-          });
-        })
-        .catchError((Object _) {});
-    repo
-        .limits()
-        .then((limits) {
-          if (!mounted || limits == null) return;
-          setState(() => _limits = limits);
-        })
-        .catchError((Object _) {});
-    repo
-        .security()
-        .then((prefs) {
-          if (!mounted || prefs == null) return;
-          setState(() {
-            _biometrics = prefs.biometrics;
-            _mfa = prefs.mfa;
-          });
-        })
-        .catchError((Object _) {});
+    repo.wallet().then((wallet) {
+      if (!mounted) return;
+      setState(() {
+        _niu = wallet.niu;
+        _niuLoaded = true;
+        _phoneCount = wallet.phones.length;
+      });
+    }).catchError((Object _) {});
+    _loadLimits();
+    repo.security().then((prefs) {
+      if (!mounted || prefs == null) return;
+      setState(() {
+        _biometrics = prefs.biometrics;
+        _mfa = prefs.mfa;
+      });
+    }).catchError((Object _) {});
   }
 
   void _showLimits() {
@@ -143,7 +133,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     languageChoice.removeListener(_onLanguage);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _loadLimits();
+  }
+
+  void _loadLimits() {
+    final repo = moneyRepo(context);
+    if (repo == null) return;
+    repo.limits().then((limits) {
+      if (!mounted || limits == null) return;
+      setState(() => _limits = limits);
+    }).catchError((Object _) {});
   }
 
   @override
@@ -202,10 +207,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       displayName,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: const Color(0xFFFDF9EE),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
+                            color: const Color(0xFFFDF9EE),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
                     ),
                     const SizedBox(height: 1),
                     Text(
@@ -301,10 +306,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Container(width: 1, height: 30, color: KpColors.line),
               Expanded(
                 child: _ProfileStat(
-                  label: 'Daily limit',
-                  value: signedIn == null
-                      ? '2M FCFA'
-                      : (_limits?.compact ?? '—'),
+                  label: 'Limits',
+                  value:
+                      signedIn == null ? '2M FCFA' : (_limits?.compact ?? '—'),
                   onTap: () => _showLimits(),
                 ),
               ),
@@ -384,9 +388,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         KpSettingsTile(
           title: 'Linked accounts',
           icon: Icons.account_balance_outlined,
-          trailingText: signedIn == null
-              ? '3'
-              : (_phoneCount?.toString() ?? '…'),
+          trailingText:
+              signedIn == null ? '3' : (_phoneCount?.toString() ?? '…'),
           onTap: () =>
               kpOpen(context, const WalletScreen(), title: 'Wallet', step: 24),
         ),
@@ -495,7 +498,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Center(
           child: Text(
             'KumPay v1.0.0 · Made in Cameroon',
-            style: Theme.of(context).textTheme.labelSmall
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
                 ?.copyWith(color: KpColors.muted, fontSize: 8.5),
           ),
         ),
@@ -529,7 +534,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(
                 'Personal details',
-                style: Theme.of(context).textTheme.titleMedium
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 14),
@@ -601,7 +608,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(
                 'Devices & sessions',
-                style: Theme.of(context).textTheme.titleMedium
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
@@ -649,14 +658,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 'Log out of KumPay?',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
               Text(
                 'You’ll need your phone number and a one-time code to sign back in.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
                     ?.copyWith(color: KpColors.muted, fontSize: 10.5),
               ),
               const SizedBox(height: 16),
@@ -713,17 +726,19 @@ class _ProfileStat extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
                 ?.copyWith(color: KpColors.muted, fontSize: 8),
           ),
           const SizedBox(height: 2),
           Text(
             value,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: KpColors.ink,
-              fontWeight: FontWeight.w800,
-              fontSize: 10.5,
-            ),
+                  color: KpColors.ink,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 10.5,
+                ),
           ),
         ],
       ),
@@ -955,10 +970,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final items = switch (_tab) {
       1 => _source.where((item) => item.kind == 'payment').toList(),
-      2 =>
-        _source
-            .where((item) => item.kind == 'security' || item.kind == 'kyc')
-            .toList(),
+      2 => _source
+          .where((item) => item.kind == 'security' || item.kind == 'kyc')
+          .toList(),
       _ => _source,
     };
     final unread = _signedIn
@@ -1058,7 +1072,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   Expanded(
                     child: Text(
                       item.title,
-                      style: Theme.of(context).textTheme.titleMedium
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                   ),
@@ -1068,15 +1084,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               Text(
                 item.body,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: KpColors.ink2,
-                  fontSize: 11.5,
-                  height: 1.55,
-                ),
+                      color: KpColors.ink2,
+                      fontSize: 11.5,
+                      height: 1.55,
+                    ),
               ),
               const SizedBox(height: 8),
               Text(
                 item.time,
-                style: Theme.of(context).textTheme.labelSmall
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
                     ?.copyWith(color: KpColors.muted, fontSize: 9),
               ),
               const SizedBox(height: 16),
@@ -1102,30 +1120,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 _InboxItem _fromNotice(ClientNotice notice) {
   final style = switch (notice.kind) {
     'payment' => (
-      Icons.south_west_rounded,
-      KpColors.success,
-      KpColors.successSoft,
-    ),
+        Icons.south_west_rounded,
+        KpColors.success,
+        KpColors.successSoft,
+      ),
     'security' => (
-      Icons.phone_iphone_rounded,
-      KpColors.info,
-      KpColors.infoSoft,
-    ),
+        Icons.phone_iphone_rounded,
+        KpColors.info,
+        KpColors.infoSoft,
+      ),
     'kyc' => (
-      Icons.verified_user_outlined,
-      KpColors.success,
-      KpColors.successSoft,
-    ),
+        Icons.verified_user_outlined,
+        KpColors.success,
+        KpColors.successSoft,
+      ),
     'support' => (
-      Icons.support_agent_rounded,
-      KpColors.goldDeep,
-      KpColors.goldSoft,
-    ),
+        Icons.support_agent_rounded,
+        KpColors.goldDeep,
+        KpColors.goldSoft,
+      ),
     _ => (
-      Icons.notifications_none_rounded,
-      KpColors.goldDeep,
-      KpColors.goldSoft,
-    ),
+        Icons.notifications_none_rounded,
+        KpColors.goldDeep,
+        KpColors.goldSoft,
+      ),
   };
   return _InboxItem(
     id: notice.id,
@@ -1145,8 +1163,7 @@ String _noticeTime(String? iso) {
   if (parsed == null) return '';
   final local = parsed.toLocal();
   final now = DateTime.now();
-  final sameDay =
-      local.year == now.year &&
+  final sameDay = local.year == now.year &&
       local.month == now.month &&
       local.day == now.day;
   const months = [
@@ -1203,9 +1220,8 @@ class _NotificationTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(KpRadius.md),
             border: Border.all(
-              color: unread
-                  ? KpColors.gold.withValues(alpha: 0.5)
-                  : KpColors.line,
+              color:
+                  unread ? KpColors.gold.withValues(alpha: 0.5) : KpColors.line,
             ),
           ),
           child: Row(
@@ -1230,12 +1246,12 @@ class _NotificationTile extends StatelessWidget {
                         Expanded(
                           child: Text(
                             title,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: KpColors.ink,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 11,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: KpColors.ink,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 11,
+                                    ),
                           ),
                         ),
                         if (unread)
@@ -1255,15 +1271,17 @@ class _NotificationTile extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: KpColors.ink2,
-                        fontSize: 9.5,
-                        height: 1.4,
-                      ),
+                            color: KpColors.ink2,
+                            fontSize: 9.5,
+                            height: 1.4,
+                          ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       time,
-                      style: Theme.of(context).textTheme.labelSmall
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
                           ?.copyWith(color: KpColors.muted, fontSize: 8),
                     ),
                   ],

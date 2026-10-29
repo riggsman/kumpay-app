@@ -13,9 +13,9 @@ import 'transaction_authorizer.dart';
 /// Whether bill payments, and this biller in particular, are switched on.
 bool billFeatureEnabled(BuildContext context, String? biller) {
   if (!FeatureFlagsScope.enabled(context, AppFeature.bills)) return false;
-  final feature = biller == null
-      ? AppFeature.schoolFees
-      : (AppFeature.forBillId(biller) ?? AppFeature.schoolFees);
+  if (biller == null || biller.isEmpty) return true;
+  final feature = AppFeature.forBillId(biller);
+  if (feature == null) return true;
   return FeatureFlagsScope.enabled(context, feature);
 }
 
@@ -36,13 +36,13 @@ Future<T?> runMoneyMovement<T>(
   final enabled = switch (kind) {
     TransactionKind.send => FeatureFlagsScope.enabled(context, AppFeature.send),
     TransactionKind.deposit => FeatureFlagsScope.enabled(
-      context,
-      AppFeature.deposit,
-    ),
+        context,
+        AppFeature.deposit,
+      ),
     TransactionKind.withdrawal => FeatureFlagsScope.enabled(
-      context,
-      AppFeature.withdrawal,
-    ),
+        context,
+        AppFeature.withdrawal,
+      ),
     TransactionKind.bill => billFeatureEnabled(context, biller),
   };
   final preview = TransactionAuthorizer.preview(
@@ -98,7 +98,9 @@ Future<void> showTransactionBlocked(
           children: [
             Text(
               _title(decision.code),
-              style: Theme.of(context).textTheme.titleMedium
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
                   ?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
@@ -111,7 +113,9 @@ Future<void> showTransactionBlocked(
               const SizedBox(height: 8),
               Text(
                 limits,
-                style: Theme.of(context).textTheme.bodySmall
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
                     ?.copyWith(color: KpColors.muted),
               ),
             ],

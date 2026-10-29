@@ -8,6 +8,8 @@ import '../../data/kyc/kyc_repository.dart';
 import '../../features/cards/cards_page.dart';
 import '../../features/feature_flags/app_feature.dart';
 import '../../features/kyc/kyc_page.dart';
+import '../../features/services/platform_service.dart';
+import '../../features/services/service_pay_page.dart';
 import '../../features/money/live_money.dart';
 import '../../preview/preview_page.dart';
 import '../../state/auth_scope.dart';
@@ -38,6 +40,10 @@ class HomeScreen extends StatelessWidget {
     final send = FeatureFlagsScope.enabled(context, AppFeature.send);
     final bills = FeatureFlagsScope.enabled(context, AppFeature.bills);
     final eneo = FeatureFlagsScope.enabled(context, AppFeature.eneo);
+    final platformServices = bills
+        ? (FeatureFlagsScope.maybeOf(context)?.snapshot.services ??
+            const <PlatformService>[])
+        : const <PlatformService>[];
     return KpPage(
       padding: const EdgeInsets.fromLTRB(22, 6, 22, 14),
       header: Row(
@@ -53,10 +59,10 @@ class HomeScreen extends StatelessWidget {
             child: Text(
               initials,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: KpColors.primaryDark,
-                fontWeight: FontWeight.w900,
-                fontSize: 12,
-              ),
+                    color: KpColors.primaryDark,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                  ),
             ),
           ),
           const SizedBox(width: 10),
@@ -66,16 +72,18 @@ class HomeScreen extends StatelessWidget {
               children: [
                 Text(
                   'Good morning',
-                  style: Theme.of(context).textTheme.labelSmall
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
                       ?.copyWith(color: KpColors.muted, fontSize: 9),
                 ),
                 Text(
                   name,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: KpColors.ink,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
+                        color: KpColors.ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
                 ),
               ],
             ),
@@ -103,19 +111,19 @@ class HomeScreen extends StatelessWidget {
             showSecondary: send,
             onPrimary: deposit
                 ? () => kpOpen(
-                    context,
-                    const WalletScreen(),
-                    title: 'Add money',
-                    step: 24,
-                  )
+                      context,
+                      const WalletScreen(),
+                      title: 'Add money',
+                      step: 24,
+                    )
                 : null,
             onSecondary: send
                 ? () => kpOpen(
-                    context,
-                    const TransferScreen(),
-                    title: 'Send money',
-                    step: 25,
-                  )
+                      context,
+                      const TransferScreen(),
+                      title: 'Send money',
+                      step: 25,
+                    )
                 : null,
           ),
         ),
@@ -229,6 +237,49 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
+        if (platformServices.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          const KpSectionHeader(title: 'New services'),
+          const SizedBox(height: 8),
+          for (final service in platformServices.take(3))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Material(
+                color: KpColors.surface,
+                borderRadius: BorderRadius.circular(KpRadius.md),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(KpRadius.md),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ServicePayPage(service: service),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        ServiceLogo(service: service, size: 36),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            service.name,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: KpColors.muted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
         const SizedBox(height: 14),
         WalletAmount(
           fallback: '\$120.50',
@@ -244,9 +295,8 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: 8),
         KpMiniAccountTile(
           title: 'Savings',
-          subtitle: signedIn == null
-              ? 'Locked until 12 Dec'
-              : 'Not available yet',
+          subtitle:
+              signedIn == null ? 'Locked until 12 Dec' : 'Not available yet',
           amount: signedIn == null ? '80 000 FCFA' : '—',
           icon: Icons.savings_outlined,
           tone: KpServiceTone.info,
@@ -426,15 +476,17 @@ class _GoldPromo extends StatelessWidget {
                   Text(
                     'Zero fees on ENEO this week',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: KpColors.ink,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 11,
-                    ),
+                          color: KpColors.ink,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                        ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Pay any prepaid meter before Sunday.',
-                    style: Theme.of(context).textTheme.bodySmall
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
                         ?.copyWith(color: KpColors.ink2, fontSize: 9.5),
                   ),
                 ],
