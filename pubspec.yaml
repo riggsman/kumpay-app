@@ -1,0 +1,28 @@
+name: kumpay_uiux
+description: KumPay mobile UI/UX kit — 31 production-ready screens for the client app.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.31.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^3.13.0
+  firebase_messaging: ^15.2.5
+  file_picker: ^13.3.0
+  flutter_secure_storage: ^11.2.0
+  google_fonts: ^6.2.1
+  http: ^1.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - web/firebase-config.json

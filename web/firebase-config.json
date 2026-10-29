@@ -1,0 +1,11 @@
+{
+  "_comment": "Paste the config from Firebase Console → Project settings → General → Your apps → SDK setup and configuration. Leave a value empty until you have it. vapidKey is the Web Push certificate key pair (Project settings → Cloud Messaging → Web configuration). Use this same Firebase project for android/app/google-services.json, ios/Runner/GoogleService-Info.plist, and KumPay-backend/firebase-service-account.json.",
+  "apiKey": "",
+  "authDomain": "",
+  "projectId": "",
+  "storageBucket": "",
+  "messagingSenderId": "",
+  "appId": "",
+  "measurementId": "",
+  "vapidKey": ""
+}
