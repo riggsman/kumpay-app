@@ -8,6 +8,8 @@ import 'package:kumpay_uiux/screens/home/home_screen.dart';
 import 'package:kumpay_uiux/state/feature_flags_controller.dart';
 import 'package:kumpay_uiux/state/feature_flags_scope.dart';
 import 'package:kumpay_uiux/theme/kp_theme.dart';
+import 'package:kumpay_uiux/widgets/kp_controls.dart';
+import 'package:kumpay_uiux/widgets/kp_finance.dart';
 
 void main() {
   test('snapshot keeps defaults for keys the platform omits', () {
@@ -154,6 +156,44 @@ void main() {
     expect(find.text('Canal+'), findsNothing);
     expect(find.text('CAMWATER'), findsOneWidget);
     expect(find.text('DStv'), findsOneWidget);
+  });
+
+  testWidgets('eneo uses the same compact tile as internet and school fees',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KpTheme.light(),
+        home: const Material(child: BillsScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.ancestor(
+        of: find.text('ENEO Electricity'),
+        matching: find.byType(KpServiceTile),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.text('Internet'),
+        matching: find.byType(KpServiceTile),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.text('School fees'),
+        matching: find.byType(KpServiceTile),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(KpBillerChip), findsNothing);
   });
 }
 

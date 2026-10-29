@@ -38,6 +38,23 @@ class BillsScreen extends StatelessWidget {
         ? (FeatureFlagsScope.maybeOf(context)?.snapshot.services ??
             const <PlatformService>[])
         : const <PlatformService>[];
+    final payTiles = <Widget>[
+      if (billsOn)
+        for (final bill in visibleBills)
+          KpServiceTile(
+            label: bill.name,
+            icon: bill.icon,
+            tone: _billTone(bill.id),
+            maxLines: 2,
+            onTap: () => kpOpen(
+              context,
+              BillPayScreen(bill: bill),
+              title: 'Pay ${bill.name}',
+              step: 28,
+            ),
+          ),
+      if (!signedIn && billsOn) ..._categoryTiles(context),
+    ];
     return KpPage(
       bottomNav: kpAppNav(context, active: KpTab.pay),
       header: KpSimpleHeader(
@@ -71,70 +88,16 @@ class BillsScreen extends StatelessWidget {
           const SizedBox(height: 8),
         ],
         if (billsOn && signedIn && schoolsOn) const _LiveBillers(),
-        if (billsOn)
-          for (final bill in visibleBills) ...[
-            KpBillerChip(
-              bill: bill,
-              onTap: () => kpOpen(
-                context,
-                BillPayScreen(bill: bill),
-                title: 'Pay ${bill.name}',
-                step: 28,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        if (billsOn && signedIn && schoolsOn) ...[
-          const SizedBox(height: 14),
+        if (payTiles.isNotEmpty) ...[
+          _ServiceGrid(tiles: payTiles),
+          const SizedBox(height: 16),
+        ],
+        if (billsOn && signedIn && schoolsOn)
           const KpTip(
             tone: KpTipTone.gold,
             child: Text('School fees are paid from your KumPay wallet.'),
           ),
-        ],
         if (!signedIn && billsOn) ...[
-          const SizedBox(height: 10),
-          const KpSectionHeader(title: 'Categories'),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              if (FeatureFlagsScope.enabled(context, AppFeature.airtime))
-                Expanded(
-                  child: KpServiceTile(
-                    label: 'Airtime',
-                    icon: Icons.smartphone_rounded,
-                    onTap: () => _soon(context, 'Airtime top-up'),
-                  ),
-                ),
-              if (FeatureFlagsScope.enabled(context, AppFeature.internet))
-                Expanded(
-                  child: KpServiceTile(
-                    label: 'Internet',
-                    icon: Icons.wifi_rounded,
-                    tone: KpServiceTone.info,
-                    onTap: () => _soon(context, 'Internet bundles'),
-                  ),
-                ),
-              if (FeatureFlagsScope.enabled(context, AppFeature.schoolFees))
-                Expanded(
-                  child: KpServiceTile(
-                    label: 'School fees',
-                    icon: Icons.school_outlined,
-                    tone: KpServiceTone.gold,
-                    onTap: () => _soon(context, 'School fees'),
-                  ),
-                ),
-              if (FeatureFlagsScope.enabled(context, AppFeature.taxes))
-                Expanded(
-                  child: KpServiceTile(
-                    label: 'Taxes',
-                    icon: Icons.account_balance_outlined,
-                    tone: KpServiceTone.neutral,
-                    onTap: () => _soon(context, 'Tax payments'),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
           if (_billOn(context, demoBills[0]) || _billOn(context, demoBills[2]))
             Container(
               padding: const EdgeInsets.all(15),
@@ -217,6 +180,48 @@ class BillsScreen extends StatelessWidget {
     return FeatureFlagsScope.enabled(context, feature);
   }
 
+  KpServiceTone _billTone(String id) {
+    return switch (id) {
+      'eneo' => KpServiceTone.gold,
+      'camwater' => KpServiceTone.info,
+      'canal' => KpServiceTone.rose,
+      _ => KpServiceTone.neutral,
+    };
+  }
+
+  List<Widget> _categoryTiles(BuildContext context) {
+    return [
+      if (FeatureFlagsScope.enabled(context, AppFeature.airtime))
+        KpServiceTile(
+          label: 'Airtime',
+          icon: Icons.smartphone_rounded,
+          onTap: () => _soon(context, 'Airtime top-up'),
+        ),
+      if (FeatureFlagsScope.enabled(context, AppFeature.internet))
+        KpServiceTile(
+          label: 'Internet',
+          icon: Icons.wifi_rounded,
+          tone: KpServiceTone.info,
+          onTap: () => _soon(context, 'Internet bundles'),
+        ),
+      if (FeatureFlagsScope.enabled(context, AppFeature.schoolFees))
+        KpServiceTile(
+          label: 'School fees',
+          icon: Icons.school_outlined,
+          tone: KpServiceTone.gold,
+          maxLines: 2,
+          onTap: () => _soon(context, 'School fees'),
+        ),
+      if (FeatureFlagsScope.enabled(context, AppFeature.taxes))
+        KpServiceTile(
+          label: 'Taxes',
+          icon: Icons.account_balance_outlined,
+          tone: KpServiceTone.neutral,
+          onTap: () => _soon(context, 'Tax payments'),
+        ),
+    ];
+  }
+
   void _soon(BuildContext context, String label) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -225,6 +230,36 @@ class BillsScreen extends StatelessWidget {
         backgroundColor: KpColors.primary,
       ),
     );
+  }
+}
+
+/// Four compact actions per row, the same shape as Internet and School fees.
+class _ServiceGrid extends StatelessWidget {
+  const _ServiceGrid({required this.tiles});
+
+  final List<Widget> tiles;
+
+  static const _columns = 4;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < tiles.length; i += _columns) {
+      final end = i + _columns > tiles.length ? tiles.length : i + _columns;
+      final slice = tiles.sublist(i, end);
+      if (rows.isNotEmpty) rows.add(const SizedBox(height: 14));
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final tile in slice) Expanded(child: tile),
+            for (var n = slice.length; n < _columns; n++)
+              const Expanded(child: SizedBox.shrink()),
+          ],
+        ),
+      );
+    }
+    return Column(children: rows);
   }
 }
 
